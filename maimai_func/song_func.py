@@ -1,13 +1,8 @@
-"""
-Error Code: 0 Succeeded, -1 Input Error, -2 Database Error
-"""
-
-
 import re
 import pymysql
 import os
-from nonebot.adapters.cqhttp import Message, Event, Bot
 import random
+from maimai_func.send_help import *
 
 try:
     connection = pymysql.connect(host="127.0.0.1", user="root", password="Root-User",
@@ -18,7 +13,16 @@ except TimeoutError:
     exit(-1)
 
 
-def search_by_base(base, difficulty=None):
+def search_by_base(user_in: str):
+    if user_in == "help":
+        return send_help("base_search")
+    try:
+        if user_in[0].isnumeric():
+            difficulty, base = None, user_in
+        else:
+            difficulty, base = user_in[0], user_in[1:]
+    except IndexError:
+        return send_help("base_search")
     cursor = connection.cursor()
     if difficulty:
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
@@ -35,7 +39,16 @@ def search_by_base(base, difficulty=None):
     return msg
 
 
-def search_by_level(level: str, difficulty=None):
+def search_by_level(user_in: str):
+    if user_in == "help":
+        return send_help("level_search")
+    try:
+        if user_in[0].isnumeric():
+            difficulty, level = None, user_in
+        else:
+            difficulty, level = user_in[0], user_in[1:]
+    except IndexError:
+        return send_help("level_search")
     cursor = connection.cursor()
     if difficulty:
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
@@ -46,9 +59,9 @@ def search_by_level(level: str, difficulty=None):
                        "(SELECT Id FROM ChartInfo WHERE Level='{}')"
                        .format(level))
     res = list(cursor.fetchall())
-    if len(res) > 30:
-        msg = "结果过多，仅显示30条："
-        res = res[:31]
+    if len(res) > 20:
+        msg = "结果过多，仅显示20条："
+        res = random.sample(res, 20)
     else:
         msg = "搜索结果："
     for song in res:
@@ -58,6 +71,9 @@ def search_by_level(level: str, difficulty=None):
 
 
 def search_by_name(keyword: str):
+    if "是什么歌" in keyword:
+        regex = "(.+)是什么歌"
+        keyword = re.match(regex, keyword).groups()[0].strip()
     cursor = connection.cursor()
     cursor.execute("SELECT Id,Title FROM SongInfo WHERE Title LIKE '%{}%'".format(keyword))
     res = []
@@ -69,9 +85,9 @@ def search_by_name(keyword: str):
     for res_part in cursor.fetchall():
         if res_part not in res:
             res.append(res_part)
-    if len(res) > 30:
-        msg = "结果过多，仅显示30条："
-        res = res[:31]
+    if len(res) > 20:
+        msg = "结果过多，仅显示20条："
+        res = random.sample(res, 20)
     else:
         msg = "搜索结果："
     for song in res:
@@ -80,23 +96,46 @@ def search_by_name(keyword: str):
     return msg
 
 
-def random_song(base=None, level=None, difficulty="%"):
+def random_song(user_in: str):
+    if user_in == "help":
+        return send_help("random_song"), None
+    base, difficulty, level = '', '%', ''
+    try:
+        if user_in[0].isnumeric():
+            if '.' in user_in:
+                difficulty, base = '%', user_in
+            else:
+                difficulty, level = '%', user_in
+        else:
+            if '.' in user_in:
+                difficulty, base = user_in[0], user_in[1:]
+            else:
+                difficulty, level = user_in[0], user_in[1:]
+    except IndexError:
+        if user_in == "":
+            pass
+        else:
+            return send_help("random_song")
     cursor = connection.cursor()
-    if base:
-        amount = cursor.execute("SELECT Id FROM ChartInfo WHERE Base='{}' AND "
-                                "Difficulty LIKE'{}'".format(base, difficulty))
-        for _ in range(random.randint(1, amount) - 1):
-            cursor.fetchone()
-    elif level:
-        amount = cursor.execute("SELECT Id FROM ChartInfo WHERE Level='{}' AND "
-                                "Difficulty LIKE '{}'".format(level, difficulty))
-        for _ in range(random.randint(1, amount) - 1):
-            cursor.fetchone()
-    else:
-        amount = cursor.execute("SELECT Id FROM SongInfo")
-        for _ in range(random.randint(1, amount) - 1):
-            cursor.fetchone()
-    id = cursor.fetchone()[0]
+    try:
+        if base:
+            amount = cursor.execute("SELECT Id FROM ChartInfo WHERE Base='{}' AND "
+                                    "Difficulty LIKE'{}'".format(base, difficulty))
+            for _ in range(random.randint(1, amount) - 1):
+                cursor.fetchone()
+        elif level:
+            amount = cursor.execute("SELECT Id FROM ChartInfo WHERE Level='{}' AND "
+                                    "Difficulty LIKE '{}'".format(level, difficulty))
+            for _ in range(random.randint(1, amount) - 1):
+                cursor.fetchone()
+        else:
+            amount = cursor.execute("SELECT Id FROM SongInfo")
+            for _ in range(random.randint(1, amount) - 1):
+                cursor.fetchone()
+        id = cursor.fetchone()[0]
+    except ValueError:
+        cursor.close()
+        return "随机条件不对哦～", None
     cursor.close()
     return select_song(id)
 
@@ -105,7 +144,7 @@ def select_song(id: str):
     cursor = connection.cursor()
     cursor.execute("SELECT * FROM SongInfo WHERE Id='{}'".format(id))
     try:
-        res = cursor.fetchall()[0]
+        res = cursor.fetchone()
         msg = f"""ID: {res[0]}
 标题：{res[1]}
 艺术家：{res[2]}
@@ -121,27 +160,17 @@ Level: {res[7]}, {res[8]}, {res[9]}, {res[10]}"""
         res = cursor.fetchall()
         msg += f"""
 定数："""
-        for i in range(len(res)):
-            msg += res[i][0] + ", "
+        base_list = [res[i][0] for i in range(len(res))]
+        msg += ", ".join(base_list)
     except IndexError:
         msg = "歌曲不存在......"
-    try:
-        if os.path.exists("cover/{}.jpg".format(id)):
-            file = f"file://{os.getcwd()}/cover/{id}.jpg"
-        else:
-            file = f"file://{os.getcwd()}/cover/{id}.png"
-        final_msg = Message([
-            {
-                "type": "image",
-                "data": {"file": f"{file}"}
-            },
-            {
-                "type": "text",
-                "data": {"text": msg}
-            }
-        ])
-    except FileNotFoundError:
-        final_msg = msg
     cursor.close()
-    return final_msg
+    if os.path.exists("cover/{}.jpg".format(id)):
+        img_path = f"file://{os.getcwd()}/cover/{id}.jpg"
+    elif os.path.exists("cover/{}.png".format(id)):
+        img_path = f"file://{os.getcwd()}/cover/{id}.png"
+    else:
+        img_path = ""
+    return msg, img_path
+
 

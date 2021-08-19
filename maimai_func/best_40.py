@@ -3,7 +3,7 @@ import asyncio
 import os
 import math
 from typing import Optional, Dict, List
-from maimai.song_func import connection
+from maimai_func.song_func import connection
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
