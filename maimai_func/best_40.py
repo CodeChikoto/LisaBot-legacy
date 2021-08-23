@@ -3,7 +3,7 @@ import asyncio
 import os
 import math
 from typing import Optional, Dict, List
-from maimai_func.song_func import connection
+from tools.database import *
 import aiohttp
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
@@ -39,9 +39,9 @@ class ChartInfo(object):
     @classmethod
     def from_json(cls, data):
         title = data["title"].replace("'", "\\'")
-        cursor = connection.cursor()
-        cursor.execute("SELECT * FROM SongInfo WHERE Title='{}'"
-                       .format(title))
+        cursor = Cursor(host="127.0.0.1", user="root", password="Root-User",
+                        database="maimai", port=3306)
+        cursor.execute("SELECT * FROM SongInfo WHERE Title='{}'".format(title))
         rate = ['d', 'c', 'b', 'bb', 'bbb', 'a', 'aa', 'aaa', 's', 'sp', 'ss', 'ssp', 'sss', 'sssp']
         ri = rate.index(data["rate"])
         fc = ['', 'fc', 'fcp', 'ap', 'app']

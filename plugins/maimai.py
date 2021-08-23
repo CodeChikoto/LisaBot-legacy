@@ -40,7 +40,7 @@ async def _(bot: Bot, event: Event, state: T_State):
     await level_search.finish(final_msg)
 
 
-name_search = on_command('name_search ', aliases={'查歌 ', "search "})
+name_search = on_command('name_search ', aliases={"查歌 ", "search "})
 
 
 @name_search.handle()
@@ -54,7 +54,21 @@ async def _(bot: Bot, event: Event, state: T_State):
     await name_search.finish(final_msg)
 
 
-view_song = on_command('view_song ', aliases={'id '})
+artist_search = on_command("artist_search ", aliases={"艺术家查歌 ", "曲师查歌 "})
+
+
+@artist_search.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    msg = search_by_artist(str(event.get_message()))
+    final_msg = Message([
+        {
+            "type": "text",
+            "data": {"text": msg}
+        }])
+    await name_search.finish(final_msg)
+
+
+view_song = on_command('view_song ', aliases={"id ", "ID "})
 
 
 @view_song.handle()

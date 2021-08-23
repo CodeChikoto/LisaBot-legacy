@@ -4,10 +4,11 @@ from typing import *
 from maimai_func.send_help import *
 import random
 import os
+from tools.database import *
 
 try:
-    connection = pymysql.connect(host="127.0.0.1", user="root", password="Root-User",
-                                 db="maimai", port=3306)
+    cursor = Cursor(host="127.0.0.1", user="root", password="Root-User",
+                            database="maimai", port=3306)
     random.seed(114514)
 except TimeoutError:
     pass
@@ -20,14 +21,12 @@ def cal_ratio(user_in: str):
         chart, user_data = user_in.split()[0], user_in.split()[1:]
     except IndexError:
         return send_help("calculator")
-    cursor = connection.cursor()
     regex = r"(绿|黄|红|紫|白)([0-9]+)"
     groups = re.match(regex, str(chart)).groups()
     if groups and groups[0] and groups[1]:
         cursor.execute("SELECT Tap,Hold,Slide,Touch,Break FROM ChartInfo "
                        "WHERE Id='{}' AND Difficulty='{}'".format(groups[1], groups[0]))
         res = cursor.fetchone()
-        cursor.close()
         if not res:
             return "谱面选择有误......"
     else:
@@ -98,10 +97,10 @@ def select_chart(user_in: str):
     if user_in == "help":
         return send_help("view_chart"), None
     try:
+        user_in = user_in.strip()
         id, difficulty = user_in[1:], user_in[0]
     except IndexError:
         return send_help("view_chart"), None
-    cursor = connection.cursor()
     cursor.execute("SELECT * FROM ChartInfo WHERE Id='{}' AND Difficulty='{}'".format(id, difficulty))
     res, img_path = cursor.fetchone(), ""
     if res:
@@ -135,5 +134,4 @@ Break: {res[9]}
             img_path = f"file://{os.getcwd()}/cover/{res[0]}.png"
     else:
         msg = "谱面不存在哟！检查下 ID 或者难度～"
-    cursor.close()
     return msg, img_path
