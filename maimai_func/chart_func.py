@@ -7,8 +7,7 @@ import os
 from tools.database import *
 
 try:
-    cursor = Cursor(host="127.0.0.1", user="root", password="Root-User",
-                            database="maimai", port=3306)
+    cursor = Cursor()
     random.seed(114514)
 except TimeoutError:
     pass
@@ -37,9 +36,9 @@ def cal_ratio(user_in: str):
         user_form.append(d.split(','))
     for line in user_form[:len(user_form) - 1]:
         if len(line) != 3:
-            return send_help("calculator")
+            return send_help("请检查下音符输入数量～")
     if len(user_form[-1]) != 5:
-        return send_help("calculator")
+        return send_help("请检查下音符输入数量～")
         # change to int
     for i in range(len(user_form)):
         for j in range(len(user_form[i])):
@@ -51,10 +50,10 @@ def cal_ratio(user_in: str):
         user_form[-1].insert(0, res[-1] - sum(user_form[-1]))
         # check note amounts valid
         for i in range(len(user_form) - 1):
-            if not any(0 <= amount <= res[i] for amount in user_form[i]):
-                return send_help("calculator")
-        if not any(0 <= amount <= res[-1] for amount in user_form[-1]):
-            return send_help("calculator")
+            if not all(0 <= amount <= res[i] for amount in user_form[i]):
+                return "请检查下音符输入数量～"
+        if not all(0 <= amount <= res[-1] for amount in user_form[-1]):
+            return send_help("请检查下音符输入数量～")
             # show notes judgement form
         msg = f"""Tap: {user_form[0][0]} {user_form[0][1]} {user_form[0][2]} {user_form[0][3]}
 Hold: {user_form[1][0]} {user_form[1][1]} {user_form[1][2]} {user_form[1][3]}
@@ -74,10 +73,10 @@ Slide: {user_form[2][0]} {user_form[2][1]} {user_form[2][2]} {user_form[2][3]}
             for j in range(4):
                 base_user += note_score[i] * user_form[i][j] * judge_ratio[j]
         base_user += 5 * ((user_form[-1][0] + user_form[-1][1] + user_form[-1][2]) * 1
-                              + user_form[-1][3] * 0.8 + user_form[-1][4] * 0.5)
+                          + user_form[-1][3] * 0.8 + user_form[-1][4] * 0.5)
         ex_user = 1 * user_form[-1][0] + 0.75 * user_form[-1][1] + 0.5 * user_form[-1][2]
         base_ratio, ex_ratio = float('%.4f' % (base_user / base_total * 100)), \
-                                   float('%.4f' % (ex_user / ex_total))
+                               float('%.4f' % (ex_user / ex_total))
         achiv = base_ratio + ex_ratio
         msg += f"""基础：{base_ratio}\n额外：{ex_ratio}\n完成率：{base_ratio + ex_ratio}"""
         if 100 <= achiv < 100.5:
@@ -102,11 +101,11 @@ def select_chart(user_in: str):
     except IndexError:
         return send_help("view_chart"), None
     cursor.execute("SELECT * FROM ChartInfo WHERE Id='{}' AND Difficulty='{}'".format(id, difficulty))
-    res, img_path = cursor.fetchone(), ""
+    res, img_path = list(cursor.fetchone()), ""
     if res:
-        res[1].replace('绿', 'Basic').replace('黄', 'Adv') \
-            .replace('红', 'Expert').replace('紫', 'Master') \
-            .replace('白', 'Re:Master')
+        res[1] = res[1].replace('绿', 'Basic').replace('黄', 'Advanced') \
+                        .replace('红', 'Expert').replace('紫', 'Master') \
+                        .replace('白', 'Re:Master')
         if res[8]:
             msg = f"""ID: {res[0]}
 难度：{res[1]}

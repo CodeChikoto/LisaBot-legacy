@@ -6,8 +6,7 @@ from maimai_func.send_help import *
 from tools.database import *
 
 try:
-    cursor = Cursor(host="127.0.0.1", user="root", password="Root-User",
-                    database="maimai", port=3306)
+    cursor = Cursor()
     random.seed(114514)
     print("Database succeeded!")
 except TimeoutError:
@@ -33,7 +32,11 @@ def search_by_base(user_in: str):
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
                        "(SELECT Id FROM ChartInfo WHERE Base='{}')".format(base))
     res = cursor.fetchall()
-    msg = "搜索结果："
+    if len(res) > 30:
+        msg = "结果过多，仅显示30条："
+        res = random.sample(res, 30)
+    else:
+        msg = "搜索结果："
     for song in res:
         msg += "\n{}  {}".format(song[0], song[1])
     return msg
@@ -41,11 +44,11 @@ def search_by_base(user_in: str):
 
 def search_by_artist(keyword: str):
     keyword = keyword.strip().replace("'", "\\'")
-    cursor.execute("SELECT Id,Title FROM SongInfo WHERE Artist LIKE '%{}%'".format(keyword))
-    res = list(cursor.fetchall())
-    if len(res) > 20:
-        msg = "结果过多，仅显示20条："
-        res = random.sample(res, 20)
+    cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE Artist LIKE '%{[keyword]}%'")
+    res = cursor.fetchall()
+    if len(res) > 30:
+        msg = "结果过多，仅显示30条："
+        res = random.sample(res, 30)
     else:
         msg = "搜索结果："
     for song in res:
@@ -72,10 +75,10 @@ def search_by_level(user_in: str):
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
                        "(SELECT Id FROM ChartInfo WHERE Level='{}')"
                        .format(level))
-    res = list(cursor.fetchall())
-    if len(res) > 20:
-        msg = "结果过多，仅显示20条："
-        res = random.sample(res, 20)
+    res = cursor.fetchall()
+    if len(res) > 30:
+        msg = "结果过多，仅显示30条："
+        res = random.sample(res, 30)
     else:
         msg = "搜索结果："
     for song in res:
@@ -133,18 +136,13 @@ def random_song(user_in: str):
         if base:
             amount = cursor.execute("SELECT Id FROM ChartInfo WHERE Base='{}' AND "
                                     "Difficulty LIKE'{}'".format(base, difficulty))
-            for _ in range(random.randint(1, amount) - 1):
-                cursor.fetchone()
         elif level:
             amount = cursor.execute("SELECT Id FROM ChartInfo WHERE Level='{}' AND "
                                     "Difficulty LIKE '{}'".format(level, difficulty))
-            for _ in range(random.randint(1, amount) - 1):
-                cursor.fetchone()
         else:
             amount = cursor.execute("SELECT Id FROM SongInfo")
-            for _ in range(random.randint(1, amount) - 1):
-                cursor.fetchone()
-        id = cursor.fetchone()[0]
+        rand_int = random.randint(0, amount - 1)
+        id = cursor.fetchall()[rand_int][0]
     except ValueError:
         return "随机条件不对哦～", None
     return select_song(id)
@@ -162,7 +160,7 @@ BPM: {res[3]}
 谱面类型：{res[4]}
 分类：{res[5]}
 收录版本：{res[6]}
-Level: {res[7]}, {res[8]}, {res[9]}, {res[10]}"""
+等级: {res[7]}, {res[8]}, {res[9]}, {res[10]}"""
         if res[11]:
             msg += f""", {res[11]}"""
         cursor.execute("SELECT Base FROM ChartInfo WHERE Id='{}' "

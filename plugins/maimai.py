@@ -193,7 +193,7 @@ async def _(bot: Bot, event: Event, state: T_State):
     await calculator.finish(final_msg)
 
 
-rule_random_song = on_command("rand_song ", aliases={"随歌 "})
+rule_random_song = on_command("rand_song ", aliases={"随歌"})
 
 
 @rule_random_song.handle()
@@ -244,7 +244,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         ]))
 
 
-help = on_command("help", aliases={"help", "lisa帮助"})
+help = on_command("help", aliases={"help", "lisa帮助", "妈妈帮我"})
 
 
 @help.handle()

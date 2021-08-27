@@ -39,15 +39,14 @@ class ChartInfo(object):
     @classmethod
     def from_json(cls, data):
         title = data["title"].replace("'", "\\'")
-        cursor = Cursor(host="127.0.0.1", user="root", password="Root-User",
-                        database="maimai", port=3306)
+        cursor = Cursor()
         cursor.execute("SELECT * FROM SongInfo WHERE Title='{}'".format(title))
         rate = ['d', 'c', 'b', 'bb', 'bbb', 'a', 'aa', 'aaa', 's', 'sp', 'ss', 'ssp', 'sss', 'sssp']
         ri = rate.index(data["rate"])
         fc = ['', 'fc', 'fcp', 'ap', 'app']
         fi = fc.index(data["fc"])
         return cls(
-            idNum=cursor.fetchall()[0][0],
+            idNum=cursor.fetchone()[0],
             title=data["title"],
             diff=data["level_index"],
             ra=data["ra"],
