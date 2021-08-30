@@ -1,16 +1,12 @@
-from maimai_func.send_help import *
 from maimai_func.song_func import *
 from interact_func.cal_luck import *
 from interact_func.emoji import *
 from maimai_func.chart_func import *
 from maimai_func.best_40 import generate
 from tools.image import *
-import os
-import re
 from nonebot import *
-from nonebot.adapters import Event
 from nonebot.adapters.cqhttp import *
-from nonebot.typing import T_State
+from nonebot.typing import *
 
 base_search = on_command('base_search ', aliases={'定数查歌 '})
 
@@ -184,7 +180,7 @@ async def _(bot: Bot, event: Event, state: T_State):
     final_msg = Message([
         {
             "type": "reply",
-            "data": {"qq": event.get_user_id()}
+            "data": {"id": event.message_id}
         },
         {
             "type": "text",

@@ -40,7 +40,7 @@ class ChartInfo(object):
     def from_json(cls, data):
         title = data["title"].replace("'", "\\'")
         cursor = Cursor()
-        cursor.execute("SELECT * FROM SongInfo WHERE Title='{}'".format(title))
+        cursor.execute(f"SELECT * FROM SongInfo WHERE Title='{title}'")
         rate = ['d', 'c', 'b', 'bb', 'bbb', 'a', 'aa', 'aaa', 's', 'sp', 'ss', 'ssp', 'sss', 'sssp']
         ri = rate.index(data["rate"])
         fc = ['', 'fc', 'fcp', 'ap', 'app']

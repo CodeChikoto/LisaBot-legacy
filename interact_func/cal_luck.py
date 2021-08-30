@@ -19,7 +19,7 @@ def cal_luck(user_id: str):
     if luckness in [1145, 1919, 810, 240]:
         msg = sp_luckness_114514
     else:
-        msg = f"\n今日运气值：{[luckness]}\n"
+        msg = f"\n今日运气值：{luckness}\n"
         for i in range(len(action_list)):
             values.append(random.randint(0, 100))
         for i in range(len(action_list)):

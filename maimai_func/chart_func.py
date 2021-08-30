@@ -8,7 +8,7 @@ from tools.database import *
 
 try:
     cursor = Cursor()
-    random.seed(114514)
+    random.seed(2508)
 except TimeoutError:
     pass
 
@@ -24,7 +24,7 @@ def cal_ratio(user_in: str):
     groups = re.match(regex, str(chart)).groups()
     if groups and groups[0] and groups[1]:
         cursor.execute("SELECT Tap,Hold,Slide,Touch,Break FROM ChartInfo "
-                       "WHERE Id='{}' AND Difficulty='{}'".format(groups[1], groups[0]))
+                       f"WHERE Id='{groups[1]}' AND Difficulty='{groups[0]}'")
         res = cursor.fetchone()
         if not res:
             return "谱面选择有误......"
@@ -100,7 +100,7 @@ def select_chart(user_in: str):
         id, difficulty = user_in[1:], user_in[0]
     except IndexError:
         return send_help("view_chart"), None
-    cursor.execute("SELECT * FROM ChartInfo WHERE Id='{}' AND Difficulty='{}'".format(id, difficulty))
+    cursor.execute(f"SELECT * FROM ChartInfo WHERE Id='{id}' AND Difficulty='{difficulty}'")
     res, img_path = list(cursor.fetchone()), ""
     if res:
         res[1] = res[1].replace('绿', 'Basic').replace('黄', 'Advanced') \

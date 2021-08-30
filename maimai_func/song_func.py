@@ -7,7 +7,7 @@ from tools.database import *
 
 try:
     cursor = Cursor()
-    random.seed(114514)
+    random.seed(2508)
     print("Database succeeded!")
 except TimeoutError:
     exit(-1)
@@ -26,11 +26,11 @@ def search_by_base(user_in: str):
         return send_help("base_search")
     if difficulty:
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       "(SELECT Id FROM ChartInfo WHERE Base='{}' AND "
-                       "Difficulty='{}')".format(base, difficulty))
+                       f"(SELECT Id FROM ChartInfo WHERE Base='{base}' AND "
+                       f"Difficulty='{difficulty}')")
     else:
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       "(SELECT Id FROM ChartInfo WHERE Base='{}')".format(base))
+                       f"(SELECT Id FROM ChartInfo WHERE Base='{base}')")
     res = cursor.fetchall()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
@@ -38,13 +38,13 @@ def search_by_base(user_in: str):
     else:
         msg = "搜索结果："
     for song in res:
-        msg += "\n{}  {}".format(song[0], song[1])
+        msg += f"\n{song[0]}  {song[1]}"
     return msg
 
 
 def search_by_artist(keyword: str):
     keyword = keyword.strip().replace("'", "\\'")
-    cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE Artist LIKE '%{[keyword]}%'")
+    cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE Artist LIKE '%{keyword}%'")
     res = cursor.fetchall()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
@@ -52,7 +52,7 @@ def search_by_artist(keyword: str):
     else:
         msg = "搜索结果："
     for song in res:
-        msg += "\n{}  {}".format(song[0], song[1])
+        msg += f"\n{song[0]}  {song[1]}"
     return msg
 
 
@@ -69,12 +69,11 @@ def search_by_level(user_in: str):
         return send_help("level_search")
     if difficulty:
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       "(SELECT Id FROM ChartInfo WHERE Level='{}' AND "
-                       "Difficulty='{}')".format(level, difficulty))
+                       f"(SELECT Id FROM ChartInfo WHERE Level='{level}' AND "
+                       f"Difficulty='{difficulty}')")
     else:
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       "(SELECT Id FROM ChartInfo WHERE Level='{}')"
-                       .format(level))
+                       f"(SELECT Id FROM ChartInfo WHERE Level='{level}')")
     res = cursor.fetchall()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
@@ -82,7 +81,7 @@ def search_by_level(user_in: str):
     else:
         msg = "搜索结果："
     for song in res:
-        msg += "\n{}  {}".format(song[0], song[1])
+        msg += f"\n{song[0]}  {song[1]}"
     return msg
 
 
@@ -91,23 +90,23 @@ def search_by_name(keyword: str):
         regex = "(.+)是什么歌"
         keyword = re.match(regex, keyword).groups()[0]
     keyword = keyword.strip().replace("'", "\\'")
-    cursor.execute("SELECT Id,Title FROM SongInfo WHERE Title LIKE '%{}%'".format(keyword))
+    cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE Title LIKE '%{keyword}%'")
     res = []
     for res_part in cursor.fetchall():
         if res_part not in res:
             res.append(res_part)
-    cursor.execute("SELECT Id,Title FROM SongInfo WHERE Title IN "
-                   "(SELECT Title FROM SongAlias WHERE Alias='{}')".format(keyword))
+    cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE Title IN "
+                   f"(SELECT Title FROM SongAlias WHERE Alias='{keyword}')")
     for res_part in cursor.fetchall():
         if res_part not in res:
             res.append(res_part)
-    if len(res) > 20:
-        msg = "结果过多，仅显示20条："
-        res = random.sample(res, 20)
+    if len(res) > 30:
+        msg = "结果过多，仅显示30条："
+        res = random.sample(res, 30)
     else:
         msg = "搜索结果："
     for song in res:
-        msg += "\n{}  {}".format(song[0], song[1])
+        msg += f"\n{song[0]}  {song[1]}"
     return msg
 
 
@@ -150,7 +149,7 @@ def random_song(user_in: str):
 
 def select_song(id: str):
     id = str(id).strip()
-    cursor.execute("SELECT * FROM SongInfo WHERE Id='{}'".format(id))
+    cursor.execute(f"SELECT * FROM SongInfo WHERE Id='{id}'")
     try:
         res = cursor.fetchone()
         msg = f"""ID: {res[0]}
@@ -163,8 +162,8 @@ BPM: {res[3]}
 等级: {res[7]}, {res[8]}, {res[9]}, {res[10]}"""
         if res[11]:
             msg += f""", {res[11]}"""
-        cursor.execute("SELECT Base FROM ChartInfo WHERE Id='{}' "
-                       "ORDER BY FIELD(Difficulty,'绿','黄','红','紫','白')".format(id))
+        cursor.execute(f"SELECT Base FROM ChartInfo WHERE Id='{id}' "
+                       "ORDER BY FIELD(Difficulty,'绿','黄','红','紫','白')")
         res = cursor.fetchall()
         msg += f"""
 定数："""
