@@ -16,7 +16,7 @@ def cal_luck(user_id: str):
     date_time = datetime.datetime.now()
     random.seed(int(user_id) + int(date_time.strftime("%Y%m%d")))
     luckness = random.randint(233, 2000) % 100
-    if luckness in [1145, 1919, 810, 240]:
+    if luckness in [1145, 1919, 810, 240, 244, 919]:
         msg = sp_luckness_114514
     else:
         msg = f"\n今日运气值：{luckness}\n"

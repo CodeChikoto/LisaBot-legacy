@@ -53,7 +53,7 @@ def cal_ratio(user_in: str):
             if not all(0 <= amount <= res[i] for amount in user_form[i]):
                 return "请检查下音符输入数量～"
         if not all(0 <= amount <= res[-1] for amount in user_form[-1]):
-            return send_help("请检查下音符输入数量～")
+            return "请检查下音符输入数量～"
             # show notes judgement form
         msg = f"""Tap: {user_form[0][0]} {user_form[0][1]} {user_form[0][2]} {user_form[0][3]}
 Hold: {user_form[1][0]} {user_form[1][1]} {user_form[1][2]} {user_form[1][3]}
@@ -77,7 +77,7 @@ Slide: {user_form[2][0]} {user_form[2][1]} {user_form[2][2]} {user_form[2][3]}
         ex_user = 1 * user_form[-1][0] + 0.75 * user_form[-1][1] + 0.5 * user_form[-1][2]
         base_ratio, ex_ratio = float('%.4f' % (base_user / base_total * 100)), \
                                float('%.4f' % (ex_user / ex_total))
-        achiv = base_ratio + ex_ratio
+        achiv = float('%.4f' % (base_ratio + ex_ratio))
         msg += f"""基础：{base_ratio}\n额外：{ex_ratio}\n完成率：{base_ratio + ex_ratio}"""
         if 100 <= achiv < 100.5:
             msg += "\n哇哦，鸟了！"
