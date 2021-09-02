@@ -94,7 +94,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             person = random.sample(dir, 1)[0]
             dir = os.listdir("emoji/persecute/" + person)
             emoji = random.sample(dir, 1)[0]
-            emoji_path = f"file://{os.getcwd()}/emoji/persecute/{emoji}"
+            emoji_path = f"file://{os.getcwd()}/emoji/persecute/{person}/{emoji}"
             await poke_back.finish(Message([
                 {
                     "type": "image",
