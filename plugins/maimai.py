@@ -239,16 +239,3 @@ async def _(bot: Bot, event: Event, state: T_State):
             }
         ]))
 
-
-help = on_command("help", aliases={"help", "lisa帮助", "妈妈帮我"})
-
-
-@help.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    msg = send_help("help")
-    final_msg = Message([
-        {
-            "type": "text",
-            "data": {"text": msg}
-        }])
-    await help.finish(final_msg)

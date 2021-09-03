@@ -4,7 +4,10 @@ from nonebot import *
 from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 from interact_func.emoji import *
+from interact_func.persecute import *
+from interact_func.send_help import *
 import re
+
 
 random.seed(time.time())
 
@@ -87,17 +90,26 @@ called = on_command("lisa ", aliases={"妈妈 ", "リサ ", "lisa "})
 
 @called.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    if str(event.get_message()) in ["随机迫害", "迫害个人"]:
-        if re.match("group", event.get_session_id()) and \
-                re.search("1025348679", event.get_session_id()):
-            dir = os.listdir("emoji/persecute")
-            person = random.sample(dir, 1)[0]
-            dir = os.listdir("emoji/persecute/" + person)
-            emoji = random.sample(dir, 1)[0]
-            emoji_path = f"file://{os.getcwd()}/emoji/persecute/{person}/{emoji}"
-            await poke_back.finish(Message([
+    command = str(event.get_message())
+    message = None
+    if re.search("迫害", command):
+        text = persecute(command, event.get_session_id())
+        if re.match("file", text):
+            message = Message([
                 {
                     "type": "image",
-                    "data": {"file": f"{emoji_path}"}
-                }]
-            ))
+                    "data": {"type": "flash", "file": f"{text}"}
+                }])
+        else:
+            message = Message([
+                {
+                    "type": "text",
+                    "data": {"text": text}
+                }])
+    elif command in ["help", "帮助"]:
+        message = Message([
+            {
+                "type": "text",
+                "data": {"text": send_help("help")}
+            }])
+    await called.finish(message)

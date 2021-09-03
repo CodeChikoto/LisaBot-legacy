@@ -1,8 +1,7 @@
 import re
-import pymysql
 import os
 import random
-from maimai_func.send_help import *
+from interact_func.send_help import *
 from tools.database import *
 
 try:
@@ -162,6 +161,13 @@ BPM: {res[3]}
 等级: {res[7]}, {res[8]}, {res[9]}, {res[10]}"""
         if res[11]:
             msg += f""", {res[11]}"""
+        with open("./temp.png", "wb") as cover:
+            cover.write(res[12])
+        cover.close()
+        if res[12]:
+            img_path = f"file://{os.getcwd()}/temp.png"
+        else:
+            img_path = ""
         cursor.execute(f"SELECT Base FROM ChartInfo WHERE Id='{id}' "
                        "ORDER BY FIELD(Difficulty,'绿','黄','红','紫','白')")
         res = cursor.fetchall()
@@ -169,12 +175,7 @@ BPM: {res[3]}
 定数："""
         base_list = [res[i][0] for i in range(len(res))]
         msg += ", ".join(base_list)
+
     except IndexError:
-        msg = "歌曲不存在......"
-    if os.path.exists("cover/{}.jpg".format(id)):
-        img_path = f"file://{os.getcwd()}/cover/{id}.jpg"
-    elif os.path.exists("cover/{}.png".format(id)):
-        img_path = f"file://{os.getcwd()}/cover/{id}.png"
-    else:
-        img_path = ""
+        msg, img_path = "歌曲不存在......", ""
     return msg, img_path
