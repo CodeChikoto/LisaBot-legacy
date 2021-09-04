@@ -8,6 +8,7 @@ import aiohttp
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 
+cursor = Cursor()
 scoreRank = 'D C B BB BBB A AA AAA S S+ SS SS+ SSS SSS+'.split(' ')
 combo = ' FC FC+ AP AP+'.split(' ')
 diffs = 'Basic Advanced Expert Master Re:Master'.split(' ')
@@ -39,7 +40,6 @@ class ChartInfo(object):
     @classmethod
     def from_json(cls, data):
         title = data["title"].replace("'", "\\'")
-        cursor = Cursor()
         cursor.execute(f"SELECT * FROM SongInfo WHERE Title='{title}'")
         rate = ['d', 'c', 'b', 'bb', 'bbb', 'a', 'aa', 'aaa', 's', 'sp', 'ss', 'ssp', 'sss', 'sssp']
         ri = rate.index(data["rate"])
@@ -205,9 +205,13 @@ class DrawBest(object):
             i = num // 5
             j = num % 5
             chartInfo = sdBest[num]
-            pngPath = self.cover_dir + f'{chartInfo.idNum}.jpg'
+            cursor.execute(f"SELECT Cover FROM SongInfo WHERE Id='{chartInfo.idNum}'")
+            with open(f"temp.png", "wb") as cover:
+                cover.write(cursor.fetchone()[0])
+            cover.close()
+            pngPath = f'temp.png'
             if not os.path.exists(pngPath):
-                pngPath = self.cover_dir + '1000.png'
+               pngPath = self.pic_dir + '1000.png'
             temp = Image.open(pngPath).convert('RGB')
             temp = self._resizePic(temp, itemW / temp.size[0])
             temp = temp.crop((0, (temp.size[1] - itemH) / 2, itemW, (temp.size[1] + itemH) / 2))
@@ -243,7 +247,7 @@ class DrawBest(object):
         for num in range(len(sdBest), sdBest.size):
             i = num // 5
             j = num % 5
-            temp = Image.open(self.cover_dir + f'1000.png').convert('RGB')
+            temp = Image.open(self.pic_dir + f'1000.png').convert('RGB')
             temp = self._resizePic(temp, itemW / temp.size[0])
             temp = temp.crop((0, (temp.size[1] - itemH) / 2, itemW, (temp.size[1] + itemH) / 2))
             temp = temp.filter(ImageFilter.GaussianBlur(1))
@@ -252,11 +256,16 @@ class DrawBest(object):
             i = num // 3
             j = num % 3
             chartInfo = dxBest[num]
-            pngPath = self.cover_dir + f'{int(chartInfo.idNum)}.jpg'
+            cursor.execute(f"SELECT Cover FROM SongInfo WHERE Id='{chartInfo.idNum}'")
+            with open(f"temp.png", "wb") as cover:
+                cover.write(cursor.fetchone()[0])
+            cover.close()
+            pngPath = "temp.png"
+            # pngPath = self.cover_dir + f'{int(chartInfo.idNum)}.jpg'
+            # if not os.path.exists(pngPath):
+            #     pngPath = self.cover_dir + f'{int(chartInfo.idNum)}.png'
             if not os.path.exists(pngPath):
-                pngPath = self.cover_dir + f'{int(chartInfo.idNum)}.png'
-            if not os.path.exists(pngPath):
-                pngPath = self.cover_dir + '1000.png'
+                pngPath = self.pic_dir + '1000.png'
             temp = Image.open(pngPath).convert('RGB')
             temp = self._resizePic(temp, itemW / temp.size[0])
             temp = temp.crop((0, (temp.size[1] - itemH) / 2, itemW, (temp.size[1] + itemH) / 2))
@@ -293,7 +302,7 @@ class DrawBest(object):
         for num in range(len(dxBest), dxBest.size):
             i = num // 3
             j = num % 3
-            temp = Image.open(self.cover_dir + f'1000.png').convert('RGB')
+            temp = Image.open(self.pic_dir + f'1000.png').convert('RGB')
             temp = self._resizePic(temp, itemW / temp.size[0])
             temp = temp.crop((0, (temp.size[1] - itemH) / 2, itemW, (temp.size[1] + itemH) / 2))
             temp = temp.filter(ImageFilter.GaussianBlur(1))
