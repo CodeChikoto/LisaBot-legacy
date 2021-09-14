@@ -4,11 +4,15 @@ import random
 import os
 from tools.database import *
 
-try:
-    cursor = Cursor()
-    random.seed(2508)
-except TimeoutError:
-    pass
+random.seed(2508)
+difficulty_alias = {"绿": "Basic", "黄": "Advanced", "红": "Expert", "紫": "Master",
+                    "白": "Re:Master", "Basic": "Basic", "Advanced": "Advanced",
+                    "Expert": "Expert", "Master": "Master", "Re:Master": "Re:Master",
+                    "Ex": "Expert", "Mst": "Master", "ReM": "Re:Master"}
+cursor = Cursor()
+charter_alias = {"谱面-100号": "譜面-100号", "谱面100号": "譜面-100号", "傻逼-100号": "譜面-100号",
+                 "傻逼100号": "譜面-100号", "dp皆传": "DP皆伝", "小鸟游": "小鳥遊", "happy": "はっぴー",
+                 "hack": "\"H\"ack"}
 
 
 def cal_ratio(user_in: str):
@@ -22,8 +26,10 @@ def cal_ratio(user_in: str):
         regex = r"(绿|黄|红|紫|白)([0-9]+)"
         groups = re.match(regex, str(chart)).groups()
         if groups and groups[0] and groups[1]:
+            if groups[0] not in difficulty_alias:
+                return "难度选择有误......"
             cursor.execute("SELECT Tap,Hold,Slide,Touch,Break FROM ChartInfo "
-                           f"WHERE Id='{groups[1]}' AND Difficulty='{groups[0]}'")
+                           f"WHERE Id='{groups[1]}' AND Difficulty='{difficulty_alias[groups[0]]}'")
             res = cursor.fetchone()
             if not res:
                 return "谱面选择有误......"
@@ -93,22 +99,25 @@ Slide: {user_form[2][0]} {user_form[2][1]} {user_form[2][2]} {user_form[2][3]}
         return send_help("calculator")
 
 
-def select_chart(user_in: str):
-    if user_in == "help":
-        return send_help("view_chart"), None
-    try:
-        user_in = user_in.strip()
-        id, difficulty = user_in[1:], user_in[0]
-    except IndexError:
-        return send_help("view_chart"), None
+def select_chart(user_in: str, difficulty="", id=""):
+    if not difficulty and not id:
+        if user_in == "help":
+            return send_help("view_chart"), None
+        try:
+            user_in = user_in.strip()
+            id, difficulty = user_in[1:], user_in[0]
+        except IndexError:
+            return send_help("view_chart"), None
+        try:
+            difficulty = difficulty_alias[difficulty]
+        except KeyError:
+            return "难度输入不对哦"
     cursor.execute(f"SELECT * FROM ChartInfo WHERE Id='{id}' AND Difficulty='{difficulty}'")
     res, img_path = list(cursor.fetchone()), ""
     if res:
-        res[1] = res[1].replace('绿', 'Basic').replace('黄', 'Advanced') \
-                        .replace('红', 'Expert').replace('紫', 'Master') \
-                        .replace('白', 'Re:Master')
         if res[8]:
-            msg = f"""ID: {res[0]}
+            msg = f"""
+ID: {res[0]}
 难度：{res[1]}
 等级：{res[2]}
 定数：{res[3]}
@@ -119,7 +128,8 @@ Touch: {res[8]}
 Break: {res[9]}
 谱师：{res[4]}"""
         else:
-            msg = f"""ID: {res[0]}
+            msg = f"""
+ID: {res[0]}
 难度：{res[1]}
 等级：{res[2]}
 定数：{res[3]}
@@ -128,10 +138,29 @@ Hold: {res[6]}
 Slide: {res[7]}
 Break: {res[9]}
 谱师：{res[4]}"""
-        cursor.execute(f"SELECT Cover FROM SongInfo WHERE Id='{id}'")
-        with open("./temp.png", "wb") as cover:
-            cover.write(cursor.fetchone()[0])
-        img_path = f"file://{os.getcwd()}/temp.png"
+        cursor.execute(f"SELECT Cover,ImageExt FROM SongInfo WHERE Id='{id}'")
+        res = cursor.fetchone()
+        with open("./temp" + res[1], "wb") as cover:
+            cover.write(res[0])
+        img_path = f"file://{os.getcwd()}/temp" + res[1]
     else:
         msg = "谱面不存在哟！检查下 ID 或者难度～"
     return msg, img_path
+
+
+def random_chart(user_in: str):
+    regex = r"(我要大战)(.+)(!｜。|)"
+    groups = re.match(regex, user_in).groups()
+    if groups[1]:
+        keywords = groups[1]
+        if keywords.lower() in charter_alias:
+            keywords = charter_alias[keywords.lower()]
+        keywords = keywords.replace('\'', '\\\'').replace('\"', '\\\"')
+        cursor.execute(f"SELECT Id,Difficulty FROM ChartInfo WHERE Charter "
+                       f"LIKE '%{keywords}%'")
+        res = cursor.fetchall()
+        if res:
+            chart = random.sample(res, 1)
+            return select_chart("", chart[0][1], str(chart[0][0]))
+        else:
+            return "", ""

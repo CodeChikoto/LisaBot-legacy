@@ -8,12 +8,12 @@ from nonebot import *
 from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 
-base_search = on_command('base_search ', aliases={'定数查歌 '})
+base_search = on_command('inner_level_search ', aliases={'定数查歌 '})
 
 
 @base_search.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    msg = search_by_base(str(event.get_message()))
+    msg = search_by_inner_level(str(event.get_message()))
     final_msg = Message([
         {
             "type": "text",
@@ -239,3 +239,30 @@ async def _(bot: Bot, event: Event, state: T_State):
             }
         ]))
 
+
+try_random_chart = on_regex(r"(我要大战)(.+)(!｜。|)")
+
+
+@try_random_chart.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    msg, img_path = random_chart(str(event.get_message()))
+    if msg:
+        if img_path:
+            final_msg = Message([
+                {
+                    "type": "image",
+                    "data": {"file": f"{img_path}"}
+                },
+                {
+                    "type": "text",
+                    "data": {"text": msg}
+                }])
+        else:
+            final_msg = Message([
+                {
+                    "type": "text",
+                    "data": {"text": msg}
+                }])
+        await try_random_chart.finish(final_msg)
+    else:
+        await try_random_chart.finish()

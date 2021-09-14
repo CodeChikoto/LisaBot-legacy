@@ -97,7 +97,7 @@ class DrawBest(object):
         self.musicRating = musicRating
         self.rankRating = self.playerRating - self.musicRating
         self.pic_dir = 'pic/'
-        self.cover_dir = 'cover/'
+        # self.cover_dir = 'cover/'
         self.img = Image.open(self.pic_dir + 'UI_TTR_BG_Base_Plus.png').convert('RGBA')
         self.ROWS_IMG = [2]
         for i in range(6):
@@ -205,11 +205,12 @@ class DrawBest(object):
             i = num // 5
             j = num % 5
             chartInfo = sdBest[num]
-            cursor.execute(f"SELECT Cover FROM SongInfo WHERE Id='{chartInfo.idNum}'")
-            with open(f"temp.png", "wb") as cover:
-                cover.write(cursor.fetchone()[0])
+            cursor.execute(f"SELECT Cover,ImageExt FROM SongInfo WHERE Id='{chartInfo.idNum}'")
+            res = cursor.fetchone()
+            with open(f"temp" + res[1], "wb") as cover:
+                cover.write(res[0])
             cover.close()
-            pngPath = f'temp.png'
+            pngPath = f'temp' + res[1]
             if not os.path.exists(pngPath):
                pngPath = self.pic_dir + '1000.png'
             temp = Image.open(pngPath).convert('RGB')
@@ -256,11 +257,12 @@ class DrawBest(object):
             i = num // 3
             j = num % 3
             chartInfo = dxBest[num]
-            cursor.execute(f"SELECT Cover FROM SongInfo WHERE Id='{chartInfo.idNum}'")
-            with open(f"temp.png", "wb") as cover:
-                cover.write(cursor.fetchone()[0])
+            cursor.execute(f"SELECT Cover,ImageExt FROM SongInfo WHERE Id='{chartInfo.idNum}'")
+            res = cursor.fetchone()
+            with open(f"temp" + res[1], "wb") as cover:
+                cover.write(res[0])
             cover.close()
-            pngPath = "temp.png"
+            pngPath = f'temp' + res[1]
             # pngPath = self.cover_dir + f'{int(chartInfo.idNum)}.jpg'
             # if not os.path.exists(pngPath):
             #     pngPath = self.cover_dir + f'{int(chartInfo.idNum)}.png'

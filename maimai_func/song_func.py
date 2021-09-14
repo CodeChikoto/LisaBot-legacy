@@ -4,32 +4,34 @@ import random
 from interact_func.send_help import *
 from tools.database import *
 
-try:
-    cursor = Cursor()
-    random.seed(2508)
-    print("Database succeeded!")
-except TimeoutError:
-    exit(-1)
+
+difficulty_alias = {"绿": "Basic", "黄": "Advanced", "红": "Expert", "紫": "Master", "白": "Re:Master"}
+random.seed(2508)
+cursor = Cursor()
 
 
-def search_by_base(user_in: str):
+def search_by_inner_level(user_in: str):
     user_in = user_in.strip()
     if user_in == "help":
-        return send_help("base_search")
+        return send_help("inner_level_search")
     try:
         if user_in[0].isnumeric():
-            difficulty, base = None, user_in
+            difficulty, inner_level = None, float(user_in)
         else:
-            difficulty, base = user_in[0], user_in[1:]
+            difficulty, inner_level = user_in[0], float(user_in[1:])
     except IndexError:
-        return send_help("base_search")
+        return send_help("inner_level_search")
     if difficulty:
+        try:
+            difficulty = difficulty_alias[difficulty]
+        except KeyError:
+            return "难度输入不对哦"
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       f"(SELECT Id FROM ChartInfo WHERE Base='{base}' AND "
+                       f"(SELECT Id FROM ChartInfo WHERE InnerLevel LIKE {inner_level} AND "
                        f"Difficulty='{difficulty}')")
     else:
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       f"(SELECT Id FROM ChartInfo WHERE Base='{base}')")
+                       f"(SELECT Id FROM ChartInfo WHERE InnerLevel LIKE {inner_level})")
     res = cursor.fetchall()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
@@ -67,6 +69,10 @@ def search_by_level(user_in: str):
     except IndexError:
         return send_help("level_search")
     if difficulty:
+        try:
+            difficulty = difficulty_alias[difficulty]
+        except KeyError:
+            return "难度输入不对哦"
         cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
                        f"(SELECT Id FROM ChartInfo WHERE Level='{level}' AND "
                        f"Difficulty='{difficulty}')")
@@ -113,27 +119,27 @@ def random_song(user_in: str):
     if user_in == "help":
         return send_help("random_song"), None
     user_in = user_in.strip()
-    base, difficulty, level = '', '%', ''
+    inner_level, difficulty, level = '', '%', ''
     try:
         if user_in[0].isnumeric():
             if '.' in user_in:
-                difficulty, base = '%', user_in
+                difficulty, inner_level = '%', float(user_in)
             else:
                 difficulty, level = '%', user_in
         else:
             if '.' in user_in:
-                difficulty, base = user_in[0], user_in[1:]
+                difficulty, inner_level = difficulty_alias[user_in[0]], float(user_in[1:])
             else:
-                difficulty, level = user_in[0], user_in[1:]
+                difficulty, level = difficulty_alias[user_in[0]], user_in[1:]
     except IndexError:
         if user_in == "":
             pass
         else:
             return send_help("random_song")
     try:
-        if base:
-            amount = cursor.execute("SELECT Id FROM ChartInfo WHERE Base='{}' AND "
-                                    "Difficulty LIKE'{}'".format(base, difficulty))
+        if inner_level:
+            amount = cursor.execute("SELECT Id FROM ChartInfo WHERE InnerLevel LIKE {} AND "
+                                    "Difficulty LIKE '{}'".format(inner_level, difficulty))
         elif level:
             amount = cursor.execute("SELECT Id FROM ChartInfo WHERE Level='{}' AND "
                                     "Difficulty LIKE '{}'".format(level, difficulty))
@@ -151,31 +157,33 @@ def select_song(id: str):
     cursor.execute(f"SELECT * FROM SongInfo WHERE Id='{id}'")
     try:
         res = cursor.fetchone()
-        msg = f"""ID: {res[0]}
+        msg = f"""
+ID: {res[0]}
 标题：{res[1]}
 艺术家：{res[2]}
 BPM: {res[3]}
 谱面类型：{res[4]}
 分类：{res[5]}
 收录版本：{res[6]}
-等级: {res[7]}, {res[8]}, {res[9]}, {res[10]}"""
-        if res[11]:
-            msg += f""", {res[11]}"""
-        with open("./temp.png", "wb") as cover:
-            cover.write(res[12])
+等级："""
+        # res[13]: .jpg or .png
+        with open("./temp" + res[8], "wb") as cover:
+            cover.write(res[7])
         cover.close()
-        if res[12]:
-            img_path = f"file://{os.getcwd()}/temp.png"
+        if res[7]:
+            img_path = f"file://{os.getcwd()}/temp" + res[8]
         else:
             img_path = ""
-        cursor.execute(f"SELECT Base FROM ChartInfo WHERE Id='{id}' "
-                       "ORDER BY FIELD(Difficulty,'绿','黄','红','紫','白')")
+        cursor.execute(f"SELECT Level,InnerLevel FROM ChartInfo WHERE Id='{id}' "
+                       "ORDER BY FIELD(Difficulty,'Basic','Advanced',"
+                       "'Expert','Master','Re:Master')")
         res = cursor.fetchall()
-        msg += f"""
-定数："""
-        base_list = [res[i][0] for i in range(len(res))]
-        msg += ", ".join(base_list)
-
+        level, inner_level = [data[0] for data in res], [data[1] for data in res]
+        for i in range(len(inner_level)):
+            inner_level[i] = str(inner_level[i])
+        msg += ",".join(level)
+        msg += '\n定数：'
+        msg += ",".join(inner_level)
     except IndexError:
         msg, img_path = "歌曲不存在......", ""
     return msg, img_path
