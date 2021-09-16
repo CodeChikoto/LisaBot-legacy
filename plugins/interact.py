@@ -6,6 +6,7 @@ from nonebot.typing import *
 from interact_func.emoji import *
 from interact_func.persecute import *
 from interact_func.send_help import *
+from maimai_func.guess_song import *
 import re
 
 
@@ -85,11 +86,14 @@ async def _(bot: Bot, event: Event, state: T_State):
     await repeat.finish()
 
 
+in_song_guess = False
+id, title, img_path = None, None, None
 called = on_command("lisa ", aliases={"妈妈 ", "リサ ", "lisa "})
 
 
 @called.handle()
 async def _(bot: Bot, event: Event, state: T_State):
+    global in_song_guess, id, title, img_path
     command = str(event.get_message())
     message = None
     if re.search("迫害", command):
@@ -112,4 +116,25 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": send_help("help")}
             }])
+    """
+        elif command == "猜歌":
+        if in_song_guess:
+            await called.send("正在进行中哦～")
+        else:
+            id, title, img_path = get_ans(id)
+            await called.send("さ〜始まるよ！")
+            tips = tip_chart(id) + tip_basic_info(id)
+            random.shuffle(tips)
+            for _ in range(8):
+                time.sleep(5)
+                await called.send(tips[0])
+                tips.pop(0)
+    
+    else:
+        if in_song_guess:
+            if re.search(command, title) and len(command) >= 5:
+                msg = Message({
+
+                })
+    """
     await called.finish(message)

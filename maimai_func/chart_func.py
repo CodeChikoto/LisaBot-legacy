@@ -138,10 +138,12 @@ Hold: {res[6]}
 Slide: {res[7]}
 Break: {res[9]}
 谱师：{res[4]}"""
-        cursor.execute(f"SELECT Cover,ImageExt FROM SongInfo WHERE Id='{id}'")
+        cursor.execute(f"SELECT Title,Cover,ImageExt FROM SongInfo WHERE Id='{id}'")
         res = cursor.fetchone()
-        with open("./temp" + res[1], "wb") as cover:
-            cover.write(res[0])
+        msg = f"""
+标题：{res[0]}"""
+        with open("./temp" + res[2], "wb") as cover:
+            cover.write(res[1])
         img_path = f"file://{os.getcwd()}/temp" + res[1]
     else:
         msg = "谱面不存在哟！检查下 ID 或者难度～"
@@ -149,13 +151,13 @@ Break: {res[9]}
 
 
 def random_chart(user_in: str):
-    regex = r"(我要大战)(.+)(!｜。|)"
+    regex = r"(我要大战)(.+)"
     groups = re.match(regex, user_in).groups()
     if groups[1]:
         keywords = groups[1]
         if keywords.lower() in charter_alias:
             keywords = charter_alias[keywords.lower()]
-        keywords = keywords.replace('\'', '\\\'').replace('\"', '\\\"')
+        keywords = keywords.replace("'", "\\'")
         cursor.execute(f"SELECT Id,Difficulty FROM ChartInfo WHERE Charter "
                        f"LIKE '%{keywords}%'")
         res = cursor.fetchall()

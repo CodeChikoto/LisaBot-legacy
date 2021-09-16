@@ -31,3 +31,6 @@ class Cursor():
 
     def fetchall(self):
         return self.res
+
+    def commit(self):
+        self.connection.commit()
