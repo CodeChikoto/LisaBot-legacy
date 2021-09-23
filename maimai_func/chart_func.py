@@ -144,7 +144,7 @@ Break: {res[9]}
 标题：{res[0]}"""
         with open("./temp" + res[2], "wb") as cover:
             cover.write(res[1])
-        img_path = f"file://{os.getcwd()}/temp" + res[1]
+        img_path = f"file://{os.getcwd()}/temp" + res[2]
     else:
         msg = "谱面不存在哟！检查下 ID 或者难度～"
     return msg, img_path

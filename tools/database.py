@@ -8,7 +8,7 @@ class Cursor():
     connection = None
     res = []
 
-    def __init__(self, host="39.106.184.73", user="root",
+    def __init__(self, host="127.0.0.1", user="root",
                  password="Root-User", database="maimai", port=3306):
         self.host, self.user, self.password, self.database, self.port = \
             host, user, password, database, port
