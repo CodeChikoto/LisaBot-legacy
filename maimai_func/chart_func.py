@@ -140,7 +140,7 @@ Break: {res[9]}
 谱师：{res[4]}"""
         cursor.execute(f"SELECT Title,Cover,ImageExt FROM SongInfo WHERE Id='{id}'")
         res = cursor.fetchone()
-        msg = f"""
+        msg = msg + f"""
 标题：{res[0]}"""
         with open("./temp" + res[2], "wb") as cover:
             cover.write(res[1])
