@@ -71,7 +71,8 @@ repeat = on_message()
 
 @repeat.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    session_src = event.get_session_id().split('_')
+    global koto_last
+    session_src, session_id = event.get_session_id().split('_'), event.get_session_id()
     if session_src[0] == "group" and event.get_type() == "message":
         group_id, user_id = session_src[1], session_src[2]
         if group_id not in msg_record:
@@ -83,18 +84,20 @@ async def _(bot: Bot, event: Event, state: T_State):
                     await repeat.send(event.get_message())
             else:
                 msg_record[group_id] = [event.get_message(), 1]
+    if re.search("993433577", session_id):
+        koto_last = time.time()
     await repeat.finish()
 
 
 in_song_guess = False
-id, title, img_path = None, None, None
+id, title, img_path, koto_last = None, None, None, None
 called = on_command("lisa ", aliases={"妈妈 ", "リサ ", "lisa "})
 
 
 @called.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    global in_song_guess, id, title, img_path
-    command = str(event.get_message())
+    global in_song_guess, id, title, img_path, koto_last
+    command, session_id = str(event.get_message()), event.get_session_id()
     message = None
     if re.search("迫害", command):
         text = persecute(command, event.get_session_id())
@@ -138,3 +141,26 @@ async def _(bot: Bot, event: Event, state: T_State):
                 })
     """
     await called.finish(message)
+
+
+is_online = on_regex(r"(.+)(在线么)")
+
+
+@is_online.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    global koto_last
+    regex = r"(.+)(在线么)"
+    groups = re.match(regex, str(event.get_message())).groups()
+    if groups[0] in ["琴琴", "琴"]:
+        if not koto_last:
+            await is_online.finish("重启后还没看到琴琴～")
+        # in 30 minutes
+        interval = time.time() - koto_last
+        if not int(interval / 1800):
+            message = str(int(interval)) + "秒前に最後のメッセージ、いそうだ"
+        elif not int(interval / 3600):
+        # 30-60 minutes
+            message = str(int(interval)) + "秒前に最後のメッセージ、いなさそうだ"
+        else:
+            message = "正体なく眠ています"
+        await is_online.finish(message)
