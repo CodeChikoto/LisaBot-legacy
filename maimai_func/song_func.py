@@ -3,9 +3,11 @@ import os
 import random
 from interact_func.send_help import *
 from tools.database import *
+import json
 
-
-difficulty_alias = {"绿": "Basic", "黄": "Advanced", "红": "Expert", "紫": "Master", "白": "Re:Master"}
+with open("./text/difficulty_alias.json", "r") as file:
+    difficulty_alias = json.load(file)
+    chart_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")(.*)"
 random.seed(2508)
 cursor = Cursor()
 
@@ -14,24 +16,15 @@ def search_by_inner_level(user_in: str):
     user_in = user_in.strip()
     if user_in == "help":
         return send_help("inner_level_search")
-    try:
-        if user_in[0].isnumeric():
-            difficulty, inner_level = None, float(user_in)
-        else:
-            difficulty, inner_level = user_in[0], float(user_in[1:])
-    except IndexError:
-        return send_help("inner_level_search")
-    if difficulty:
-        try:
-            difficulty = difficulty_alias[difficulty]
-        except KeyError:
-            return "难度输入不对哦"
-        cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       f"(SELECT Id FROM ChartInfo WHERE InnerLevel LIKE {inner_level} AND "
-                       f"Difficulty='{difficulty}')")
+    groups = re.match(chart_regex, user_in.lower()).groups()
+    difficulty, inner_level = groups[0], float(groups[1])
+    if difficulty in difficulty_alias:
+        difficulty = difficulty_alias[difficulty]
     else:
-        cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       f"(SELECT Id FROM ChartInfo WHERE InnerLevel LIKE {inner_level})")
+        return "输入有误呢～"
+    cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
+                   f"(SELECT Id FROM ChartInfo WHERE InnerLevel LIKE {inner_level} AND "
+                   f"Difficulty LIKE '{difficulty}')")
     res = cursor.fetchall()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
@@ -61,24 +54,15 @@ def search_by_level(user_in: str):
     user_in = user_in.strip()
     if user_in == "help":
         return send_help("level_search")
-    try:
-        if user_in[0].isnumeric():
-            difficulty, level = None, user_in
-        else:
-            difficulty, level = user_in[0], user_in[1:]
-    except IndexError:
-        return send_help("level_search")
-    if difficulty:
-        try:
-            difficulty = difficulty_alias[difficulty]
-        except KeyError:
-            return "难度输入不对哦"
-        cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       f"(SELECT Id FROM ChartInfo WHERE Level='{level}' AND "
-                       f"Difficulty='{difficulty}')")
+    groups = re.match(chart_regex, user_in.lower()).groups()
+    difficulty, level = groups[0], groups[1]
+    if difficulty in difficulty_alias:
+        difficulty = difficulty_alias[difficulty]
     else:
-        cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                       f"(SELECT Id FROM ChartInfo WHERE Level='{level}')")
+        return "输入有误呢～"
+    cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
+                   f"(SELECT Id FROM ChartInfo WHERE Level='{level}' AND "
+                   f"Difficulty LIKE '{difficulty}')")
     res = cursor.fetchall()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
@@ -119,23 +103,21 @@ def random_song(user_in: str):
     if user_in == "help":
         return send_help("random_song"), None
     user_in = user_in.strip()
-    inner_level, difficulty, level = '', '%', ''
+    inner_level, difficulty, level = '', '', ''
     try:
-        if user_in[0].isnumeric():
-            if '.' in user_in:
-                difficulty, inner_level = '%', float(user_in)
-            else:
-                difficulty, level = '%', user_in
+        groups = re.match(chart_regex, user_in.lower()).groups()
+        difficulty = groups[0] if groups[0] else '%'
+        if difficulty in difficulty_alias:
+            difficulty = difficulty_alias[difficulty]
+        if '.' in groups[1]:
+            inner_level = groups[1]
         else:
-            if '.' in user_in:
-                difficulty, inner_level = difficulty_alias[user_in[0]], float(user_in[1:])
-            else:
-                difficulty, level = difficulty_alias[user_in[0]], user_in[1:]
-    except IndexError:
-        if user_in == "":
-            pass
-        else:
+            level = groups[1]
+    except Exception:
+        if user_in:
             return send_help("random_song")
+        else:
+            pass
     try:
         if inner_level:
             amount = cursor.execute("SELECT Id FROM ChartInfo WHERE InnerLevel LIKE {} AND "

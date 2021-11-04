@@ -3,47 +3,40 @@ from interact_func.send_help import *
 import random
 import os
 from tools.database import *
+import json
 
 random.seed(2508)
-difficulty_alias = {"绿": "Basic", "黄": "Advanced", "红": "Expert", "紫": "Master",
-                    "白": "Re:Master", "Basic": "Basic", "Advanced": "Advanced",
-                    "Expert": "Expert", "Master": "Master", "Re:Master": "Re:Master",
-                    "Ex": "Expert", "Mst": "Master", "ReM": "Re:Master"}
+with open("./text/difficulty_alias.json", "r") as file:
+    difficulty_alias = json.load(file)
+    chart_regex = r"(" + r"|".join(difficulty_alias.keys()) + r")([0-9]+)"
 cursor = Cursor()
-charter_alias = {"谱面-100号": "譜面-100号", "谱面100号": "譜面-100号", "傻逼-100号": "譜面-100号",
-                 "傻逼100号": "譜面-100号", "dp皆传": "DP皆伝", "小鸟游": "小鳥遊", "happy": "はっぴー",
-                 "hack": "\"H\"ack"}
 
 
 def cal_ratio(user_in: str):
+    global difficulty_alias, chart_regex
     if user_in == "help":
         return send_help("calculator")
-    try:
-        chart, user_data = user_in.split()[0], user_in.split()[1:]
-    except IndexError:
-        return send_help("calculator")
-    try:
-        regex = r"(绿|黄|红|紫|白)([0-9]+)"
-        groups = re.match(regex, str(chart)).groups()
-        if groups and groups[0] and groups[1]:
-            if groups[0] not in difficulty_alias:
-                return "难度选择有误......"
-            cursor.execute("SELECT Tap,Hold,Slide,Touch,Break FROM ChartInfo "
-                           f"WHERE Id='{groups[1]}' AND Difficulty='{difficulty_alias[groups[0]]}'")
-            res = cursor.fetchone()
-            if not res:
-                return "谱面选择有误......"
+    chart, user_data = user_in.split()[0], user_in.split()[1:]
+    groups = list(re.match(chart_regex, chart.lower()).groups())
+    if groups[0] and groups[1]:
+        if groups[0] in difficulty_alias:
+            groups[0] = difficulty_alias[groups[0]]
         else:
-            return send_help("calculator")
+            return "难度不对呀"
+        cursor.execute("SELECT Tap,Hold,Slide,Touch,Break FROM ChartInfo "
+                       f"WHERE Id='{groups[1]}' AND Difficulty='{groups[0]}'")
+        res = cursor.fetchone()
+        if not res:
+            return "谱面或难度选择有误......"
         user_form = []
         # split gr, go and miss
         for d in user_data:
             user_form.append(d.split(','))
         for line in user_form[:len(user_form) - 1]:
             if len(line) != 3:
-                return send_help("请检查下音符输入数量～")
+                return "请检查下音符输入数量～"
         if len(user_form[-1]) != 5:
-            return send_help("请检查下音符输入数量～")
+            return "请检查下音符输入数量～"
             # change to int
         for i in range(len(user_form)):
             for j in range(len(user_form[i])):
@@ -93,27 +86,23 @@ Slide: {user_form[2][0]} {user_form[2][1]} {user_form[2][2]} {user_form[2][3]}
             elif 100.5 <= achiv < 101:
                 msg += "\n哇哦，鸟加了！"
             return msg
-    except Exception:
-        return send_help("calculator")
     else:
-        return send_help("calculator")
+        return "检查下输入哦！"
+    return send_help("calculator")
 
 
 def select_chart(user_in: str, difficulty="", id=""):
+    global difficulty_alias, chart_regex
     if not difficulty and not id:
         if user_in == "help":
             return send_help("view_chart"), None
-        try:
-            user_in = user_in.strip()
-            id, difficulty = user_in[1:], user_in[0]
-        except IndexError:
-            return send_help("view_chart"), None
-        try:
-            difficulty = difficulty_alias[difficulty]
-        except KeyError:
-            return "难度输入不对哦"
+        groups = re.match(chart_regex, user_in.lower()).groups()
+        id, difficulty = groups[1], difficulty_alias[groups[0]] \
+            if groups[0] in difficulty_alias else groups[0]
     cursor.execute(f"SELECT * FROM ChartInfo WHERE Id='{id}' AND Difficulty='{difficulty}'")
     res, img_path = list(cursor.fetchone()), ""
+    if not res:
+        return "谱面不存在哟！检查下 ID 或者难度～", ""
     if res:
         if res[8]:
             msg = f"""
@@ -140,8 +129,8 @@ Break: {res[9]}
 谱师：{res[4]}"""
         cursor.execute(f"SELECT Title,Cover,ImageExt FROM SongInfo WHERE Id='{id}'")
         res = cursor.fetchone()
-        msg = msg + f"""
-标题：{res[0]}"""
+        msg = f"""
+标题：{res[0]}""" + msg
         with open("./temp" + res[2], "wb") as cover:
             cover.write(res[1])
         img_path = f"file://{os.getcwd()}/temp" + res[2]
@@ -155,8 +144,6 @@ def random_chart(user_in: str):
     groups = re.match(regex, user_in).groups()
     if groups[1]:
         keywords = groups[1]
-        if keywords.lower() in charter_alias:
-            keywords = charter_alias[keywords.lower()]
         keywords = keywords.replace("'", "\\'")
         cursor.execute(f"SELECT Id,Difficulty FROM ChartInfo WHERE Charter "
                        f"LIKE '%{keywords}%'")

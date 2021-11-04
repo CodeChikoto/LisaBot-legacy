@@ -1,0 +1,22 @@
+{
+  "bas": "Basic",
+  "绿": "Basic",
+  "basic": "Basic",
+  "adv": "Advanced",
+  "黄": "Advanced",
+  "advanced": "Advanced",
+  "exp": "Expert",
+  "ex": "Expert",
+  "红": "Expert",
+  "expert": "Expert",
+  "mas": "Master",
+  "mst": "Master",
+  "紫": "Master",
+  "master": "Master",
+  "rem": "Re:Master",
+  "re:m": "Re:Master",
+  "白": "Re:Master",
+  "re:master": "Re:Master",
+  "remaster": "Re:Master",
+  "": "%"
+}

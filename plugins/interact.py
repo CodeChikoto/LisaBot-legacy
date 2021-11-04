@@ -7,6 +7,7 @@ from interact_func.emoji import *
 from interact_func.persecute import *
 from interact_func.send_help import *
 from maimai_func.guess_song import *
+from interact_func.selector import *
 import re
 
 
@@ -113,11 +114,22 @@ async def _(bot: Bot, event: Event, state: T_State):
                     "type": "text",
                     "data": {"text": text}
                 }])
-    elif command in ["help", "帮助"]:
+    elif command in ["text", "帮助"]:
         message = Message([
             {
                 "type": "text",
-                "data": {"text": send_help("help")}
+                "data": {"text": send_help("text")}
+            }])
+    elif ["or", "还是", "或者"]:
+        ans = auto_select(command)
+        message = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": ans + "ばいいよ！"}
             }])
     """
         elif command == "猜歌":
@@ -156,9 +168,9 @@ async def _(bot: Bot, event: Event, state: T_State):
             await is_online.finish("重启后还没看到琴琴～")
         # in 30 minutes
         interval = time.time() - koto_last
-        if not int(interval / 1800):
+        if not int(interval / 600):
             message = str(int(interval)) + "秒前に最後のメッセージ、いそうだ"
-        elif not int(interval / 3600):
+        elif not int(interval / 7200):
         # 30-60 minutes
             message = str(int(interval)) + "秒前に最後のメッセージ、いなさそうだ"
         else:
