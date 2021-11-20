@@ -1,6 +1,4 @@
 from maimai_func.song_func import *
-from interact_func.cal_luck import *
-from interact_func.emoji import *
 from maimai_func.chart_func import *
 from maimai_func.best_40 import generate
 from tools.image import *
@@ -8,7 +6,31 @@ from nonebot import *
 from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 
-base_search = on_command('inner_level_search ', aliases={'定数查歌 '})
+with open("./text/difficulty_alias.json", "r") as file:
+    difficulty_alias = json.load(file)
+    chart_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")([0-9]+)"
+    difficulty_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")"
+
+base_search = on_command('inner_level_search ', aliases={'定数查歌 '}, block=True)
+level_search = on_command('level_search ', aliases={'等级查歌 '}, block=True)
+name_search = on_command('name_search ', aliases={"查歌 ", "search "}, block=True)
+artist_search = on_command("artist_search ", aliases={"艺术家查歌 ", "曲师查歌 "}, block=True)
+view_song = on_command('view_song ', aliases={"id ", "ID ", "歌曲 "}, block=True)
+view_chart = on_command("view_chart ", aliases={"查谱 ", "看谱 "}, block=True)
+mai_what = on_regex(r".*mai.?什么", block=True)
+which_is = on_regex(r".+是什么歌", block=True)
+calculator = on_regex(f"完成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                      f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                      f"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", block=True)
+break_dist = on_regex(f"绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                      f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                      f"([0-9]+),([0-9]+),([0-9]+),([0-9]+) ([0-9]+.[0-9]+)", block=True)
+inner_level_random_song = on_regex(r"随歌 " + difficulty_regex + r"([0-9]+)(\.)([0-9])")
+level_random_song = on_regex(r"随歌 " + difficulty_regex + r"([0-9]+)([^\d\.])")
+try_random_chart = on_regex(r"我要大战(.+)", block=True)
+best_40_pic = on_command("best_40", aliases={"b40", "B40"}, block=True)
+best_50_pic = on_command("best_50", aliases={"b50", "B50"}, block=True)
+add_alias = on_command("增加别名", block=True)
 
 
 @base_search.handle()
@@ -22,9 +44,6 @@ async def _(bot: Bot, event: Event, state: T_State):
     await base_search.finish(final_msg)
 
 
-level_search = on_command('level_search ', aliases={'等级查歌 '})
-
-
 @level_search.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg = search_by_level(str(event.get_message()))
@@ -34,9 +53,6 @@ async def _(bot: Bot, event: Event, state: T_State):
             "data": {"text": msg}
         }])
     await level_search.finish(final_msg)
-
-
-name_search = on_command('name_search ', aliases={"查歌 ", "search "})
 
 
 @name_search.handle()
@@ -50,9 +66,6 @@ async def _(bot: Bot, event: Event, state: T_State):
     await name_search.finish(final_msg)
 
 
-artist_search = on_command("artist_search ", aliases={"艺术家查歌 ", "曲师查歌 "})
-
-
 @artist_search.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg = search_by_artist(str(event.get_message()))
@@ -61,10 +74,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             "type": "text",
             "data": {"text": msg}
         }])
-    await name_search.finish(final_msg)
-
-
-view_song = on_command('view_song ', aliases={"id ", "ID "})
+    await artist_search.finish(final_msg)
 
 
 @view_song.handle()
@@ -86,10 +96,10 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": msg}
             }])
-    await view_song.send(final_msg)
-
-
-view_chart = on_command("view_chart ", aliases={"查谱 ", "看谱 "})
+    try:
+        await view_song.send(final_msg)
+    except CQHTTPAdapterException:
+        await view_song.send("ごめん〜风控了ね！\n" + msg)
 
 
 @view_chart.handle()
@@ -111,15 +121,15 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": msg}
             }])
-    await view_song.send(final_msg)
-
-
-mai_what = on_regex(r".*mai.?什么")
+    try:
+        await view_chart.send(final_msg)
+    except CQHTTPAdapterException:
+        await view_chart.send("ごめん〜风控了ね！\n" + msg)
 
 
 @mai_what.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    msg, img_path = random_song("")
+    msg, img_path = random_any("")
     if img_path:
         final_msg = Message([
             {
@@ -136,28 +146,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": msg}
             }])
-    await view_song.send(final_msg)
-
-
-today_luck = on_command("today_luck", aliases={"今日运势", "今日舞萌"})
-
-
-@today_luck.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    msg = Message([
-        {
-            "type": "at",
-            "data": {"qq": event.get_user_id()}
-        },
-        {
-            "type": "text",
-            "data": {"text": cal_luck(event.get_user_id())}
-        }
-    ])
-    await today_luck.finish(msg)
-
-
-which_is = on_regex(r".+是什么歌")
+    await mai_what.send(final_msg)
 
 
 @which_is.handle()
@@ -168,15 +157,12 @@ async def _(bot: Bot, event: Event, state: T_State):
             "type": "text",
             "data": {"text": msg}
         }])
-    await name_search.finish(final_msg)
-
-
-calculator = on_command("cal ", aliases={"计算器 ", "cal "})
+    await which_is.finish(final_msg)
 
 
 @calculator.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    msg = cal_ratio(str(event.get_message()))
+    msg = cal_achiv_range(str(event.get_message()))
     final_msg = Message([
         {
             "type": "reply",
@@ -189,12 +175,39 @@ async def _(bot: Bot, event: Event, state: T_State):
     await calculator.finish(final_msg)
 
 
-rule_random_song = on_command("rand_song ", aliases={"随歌"})
-
-
-@rule_random_song.handle()
+@break_dist.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    msg, img_path = random_song(str(event.get_message()))
+    text, img = cal_break_dist(str(event.get_message()))
+    if img:
+        final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": text}
+            },
+            {
+                "type": "image",
+                "data": {"file": f"base64://{str(image_to_base64(img), encoding='utf-8')}"}
+            }])
+    else:
+        final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": text}
+            }])
+    await break_dist.finish(final_msg)
+
+
+@level_random_song.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    msg, img_path = random_by_level(str(event.get_message()))
     if img_path:
         final_msg = Message([
             {
@@ -211,10 +224,35 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": msg}
             }])
-    await rule_random_song.finish(final_msg)
+    try:
+        await level_random_song.finish(final_msg)
+    except CQHTTPAdapterException:
+        await level_random_song.finish("ごめん〜风控了ね！\n" + msg)
 
 
-best_40_pic = on_command("b40", aliases={"b40", "B40"})
+@inner_level_random_song.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    msg, img_path = random_by_inner_level(str(event.get_message()))
+    if img_path:
+        final_msg = Message([
+            {
+                "type": "image",
+                "data": {"file": f"{img_path}"}
+            },
+            {
+                "type": "text",
+                "data": {"text": msg}
+            }])
+    else:
+        final_msg = Message([
+            {
+                "type": "text",
+                "data": {"text": msg}
+            }])
+    try:
+        await inner_level_random_song.finish(final_msg)
+    except CQHTTPAdapterException:
+        await inner_level_random_song.finish("ごめん〜风控了ね！\n" + msg)
 
 
 @best_40_pic.handle()
@@ -238,9 +276,6 @@ async def _(bot: Bot, event: Event, state: T_State):
                 }
             }
         ]))
-
-
-best_50_pic = on_command("best_50", aliases={"b50", "B50"})
 
 
 @best_50_pic.handle()
@@ -267,9 +302,6 @@ async def _(bot: Bot, event: Event, state: T_State):
         ]))
 
 
-try_random_chart = on_regex(r"(我要大战)(.+)(!｜。|)")
-
-
 @try_random_chart.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg, img_path = random_chart(str(event.get_message()))
@@ -290,6 +322,24 @@ async def _(bot: Bot, event: Event, state: T_State):
                     "type": "text",
                     "data": {"text": msg}
                 }])
-        await try_random_chart.finish(final_msg)
+        try:
+            await try_random_chart.finish(final_msg)
+        except CQHTTPAdapterException:
+            await try_random_chart.finish("ごめん〜风控了ね！\n" + msg)
     else:
         await try_random_chart.finish()
+
+
+@add_alias.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    if add_alias_handle(str(event.get_message())):
+        await add_alias.finish(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": "わかった！"}
+            }
+        ]))
