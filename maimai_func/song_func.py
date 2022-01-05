@@ -18,7 +18,7 @@ def search_by_inner_level(user_in: str):
     if user_in == "help":
         return send_help("inner_level_search")
     groups = re.match(chart_regex, user_in.lower()).groups()
-    difficulty, inner_level = groups[0], float(groups[1])
+    difficulty, inner_level = groups[0] if groups[0] else '%', float(groups[1])
     if difficulty in difficulty_alias:
         difficulty = difficulty_alias[difficulty]
     else:
@@ -56,7 +56,7 @@ def search_by_level(user_in: str):
     if user_in == "help":
         return send_help("level_search")
     groups = re.match(chart_regex, user_in.lower()).groups()
-    difficulty, level = groups[0], groups[1]
+    difficulty, level = groups[0] if groups[0] else '%', groups[1]
     if difficulty in difficulty_alias:
         difficulty = difficulty_alias[difficulty]
     else:
@@ -94,35 +94,29 @@ def search_by_name(keyword: str):
 
 
 def random_by_level(user_in: str):
-    if '.' in user_in:
-        return "", None
+    [difficulty, level] = re.match("随歌 " + difficulty_regex + "\s?([0-9]+\+?)$", user_in).groups()
     # (难度)(数字)(+|)
-    groups = re.match(r"随歌 " + difficulty_regex + r"([0-9]+)([^\d\.])", user_in).groups()
-    difficulty, level = difficulty_alias[groups[0]] if groups[0] and groups[0] in difficulty_alias else '%', \
-                        groups[1]
-    if groups[2] == '+':
-        level += '+'
+    difficulty = difficulty_alias[difficulty] if difficulty and difficulty in difficulty_alias else '%'
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE Level='{level}' "
                             f"AND Difficulty LIKE '{difficulty}'")
     rand_int = random.randint(0, amount - 1)
-    try:
+    if amount:
         id = cursor.fetchall()[rand_int][0]
-        return select_song(str(id))
-    except ValueError:
+        return select_song(f"id {id}")
+    else:
         return "随机条件不对哦～", None
 
 
 def random_by_inner_level(user_in: str):
-    groups = re.match(r"随歌 " + difficulty_regex + r"([0-9]+)(\.)([0-9])", user_in).groups()
-    difficulty, inner_level = difficulty_alias[groups[0]] if groups[0] and groups[0] in difficulty_alias else '%', \
-                              groups[1] + groups[2] + groups[3]
+    [difficulty, inner_level] = re.match("随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])", user_in).groups()
+    difficulty = difficulty_alias[difficulty] if difficulty and difficulty in difficulty_alias else '%'
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} "
                             f"AND Difficulty LIKE '{difficulty}'")
     rand_int = random.randint(0, amount - 1)
-    try:
+    if amount:
         id = cursor.fetchall()[rand_int][0]
-        return select_song(str(id))
-    except ValueError:
+        return select_song(f"id {id}")
+    else:
         return "随机条件不对哦～", None
 
 
@@ -132,39 +126,39 @@ def random_any(user_in: str):
     amount = cursor.execute(f"SELECT Id FROM SongInfo")
     rand_int = random.randint(0, amount - 1)
     id = cursor.fetchall()[rand_int][0]
-    return select_song(str(id))
+    return select_song(f"id {id}")
 
 
 def select_song(user_in: str):
-    try:
-        args = user_in.split()
-        id, version = args[0], args[1] if len(args) == 2 else "舞萌DX 2021"
-        cursor.execute(f"SELECT * FROM SongInfo WHERE Id={id}")
-        res = cursor.fetchone()
-        msg = f"""
+    [id, verion] = re.match("id ([0-9]+)\s?(.+)?", user_in).groups()
+    version = "舞萌DX 2021" if not verion else verion
+    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
+    if cursor.fetchone()[0] != 1:
+        return "这是什么大版本呀？", None
+    cursor.execute(f"SELECT * FROM SongInfo WHERE Id={id}")
+    res = cursor.fetchone()
+    msg = f"""
 ID: {res[0]}
 标题：{res[1]}
 艺术家：{res[2]}
 BPM: {res[3]}
 谱面类型：{res[4]}
-分类：{res[4]}
-收录版本：{res[5]}
+分类：{res[5]}
+收录版本：{res[6]}
 等级："""
-        with open("./temp" + res[8], "wb") as cover:
-            cover.write(res[7])
-        cover.close()
-        img_path = f"file://{os.getcwd()}/temp" + res[8] if res[7] else ""
-        cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty "
-                       f"WHERE Id={id} AND Version LIKE '%{version}%'"
-                       "ORDER BY FIELD(Difficulty,'Basic','Advanced',"
-                       "'Expert','Master','Re:Master')")
-        res = cursor.fetchall()
-        level, inner_level = [data[0] for data in res], [str(data[1]) for data in res]
-        msg += ",".join(level)
-        msg += '\n定数：'
-        msg += ",".join(inner_level)
-    except IndexError:
-        msg, img_path = "歌曲不存在......", ""
+    with open("./temp" + res[8], "wb") as cover:
+        cover.write(res[7])
+    cover.close()
+    img_path = f"file://{os.getcwd()}/temp" + res[8] if res[7] else ""
+    cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty "
+                   f"WHERE Id={id} AND Version LIKE '%{version}%'"
+                   "ORDER BY FIELD(Difficulty,'Basic','Advanced',"
+                   "'Expert','Master','Re:Master')")
+    res = cursor.fetchall()
+    level, inner_level = [data[0] for data in res], [str(data[1]) for data in res]
+    msg += ",".join(level)
+    msg += '\n定数：'
+    msg += ",".join(inner_level)
     return msg, img_path
 
 

@@ -8,7 +8,6 @@ from interact_func.cal_luck import *
 from interact_func.emoji import *
 from interact_func.persecute import *
 from interact_func.send_help import *
-from maimai_func.guess_song import *
 from interact_func.selector import *
 from plugins.called_interact import mute_list
 import re

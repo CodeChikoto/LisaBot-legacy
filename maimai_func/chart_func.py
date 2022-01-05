@@ -1,19 +1,57 @@
 import re
+import aiohttp
 from interact_func.send_help import *
 import random
 import os
+from maimai_func.get_data_func import *
 from tools.database import *
 from tools.image import *
 import json
+from math import ceil
 
+score_ranks = {'SSS+': 100.5, 'SSS': 100, 'SS+': 99.5, 'SS': 99, 'S+': 98, 'S': 97, 'AAA': 94,
+               'AA': 90, 'A': 80, 'BBB': 75, 'BB': 70, 'B': 60, 'C': 50, 'D': 0}
+combo_ranks = {"AP+": 0, "app": 0, "ap": 1, "AP": 1, "FC+": 2, "fcp": 2, "fc": 3, "FC": 3, "": 4}
+combo_types = {"fc": "FC", "fcp": "FC+", "ap": "AP", "app": "AP+", "": ""}
+score_ranks_regex = '(' + "|".join(score_ranks.keys()) + ')?'
+score_ranks_regex = score_ranks_regex.replace('+', '\+')
+combo_ranks_regex = '(' + "|".join(combo_ranks.keys()) + ')?'
+combo_ranks_regex = combo_ranks_regex.replace('+', '\+')
 random.seed(2508)
 with open("./text/difficulty_alias.json", "r") as file:
     difficulty_alias = json.load(file)
     chart_regex = r"(" + r"|".join(difficulty_alias.keys()) + r")([0-9]+)"
 cursor = Cursor()
+plate_to_version = {
+    '初': 'maimai',
+    '真': 'maimai PLUS',
+    '超': 'maimai GreeN',
+    '檄': 'maimai GreeN PLUS',
+    '橙': 'maimai ORANGE',
+    '暁': 'maimai ORANGE PLUS',
+    '晓': 'maimai ORANGE PLUS',
+    '桃': 'maimai PiNK',
+    '櫻': 'maimai PiNK PLUS',
+    '樱': 'maimai PiNK PLUS',
+    '紫': 'maimai MURASAKi',
+    '菫': 'maimai MURASAKi PLUS',
+    '堇': 'maimai MURASAKi PLUS',
+    '白': 'maimai MiLK',
+    '雪': 'MiLK PLUS',
+    '輝': 'maimai FiNALE',
+    '辉': 'maimai FiNALE',
+    '熊': 'maimai でらっくす',
+    # '華': 'maimai でらっくす PLUS',
+    '華': 'maimai でらっくす',
+    # '华': 'maimai でらっくす PLUS',
+    '华': 'maimai でらっくす',
+    '爽': 'maimai でらっくす Splash',
+    # '煌': 'maimai でらっくす Splash PLUS',
+    '煌': 'maimai でらっくす Splash',
+}
 
 
-def check_combo(user_chart: list[list[int]]):
+def check_combo(user_chart):
     state = None
     if all(miss[-1] == 0 for miss in user_chart):
         if all(good[-2] == 0 for good in user_chart):
@@ -122,7 +160,7 @@ def cal_break_dist(user_in: str):
                 for j in range(user_chart[-1][2] + 1):
                     for k in range(user_chart[-1][2] - j + 1):
                         user_basic_trial = user_basic + 5 * (user_chart[-1][0] + user_chart[-1][1]) + 4 * j + 3 * k + \
-                                      2.5 * (user_chart[-1][2] - j - k) + 2 * user_chart[-1][3]
+                                           2.5 * (user_chart[-1][2] - j - k) + 2 * user_chart[-1][3]
                         user_ex = user_chart[-1][0] + 0.75 * i + 0.5 * (user_chart[-1][1] - i) + \
                                   0.4 * user_chart[-1][2] + 0.3 * user_chart[-1][3]
                         if re.match(groups[18], str(user_basic_trial / total_basic * 100 + user_ex / total_ex)):
@@ -195,3 +233,68 @@ def random_chart(user_in: str):
             return select_chart(difficulty + str(id))
         else:
             return "", ""
+
+
+async def get_achiv_list(user_in: str, user_id: int):
+    # [level, page, username]
+    regex = r"分数列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?"
+    [level, page, username] = re.match(regex, user_in).groups()
+    page = int(page) if page else 1
+    payload = {"username": username} if username else {"qq": user_id}
+    payload["version"] = list(set(version for version in plate_to_version.values()))
+    data = await get_player_data(payload, "plate")
+    if isinstance(data, str):
+        return data
+    ans = []
+    for chart in data["verlist"]:
+        if chart["level"] == level:
+            ans.append(chart)
+    total_pages = ceil(len(ans) / 25)
+    if not ans:
+        return "真的打过这个等级嘛？"
+    ans.sort(key=lambda x: float(x["achievements"]), reverse=True)
+    ans = ans[25 * (page - 1):min(25 * page, len(ans))]
+    msg = f"你的等级{level}完成率列表第{page}/{total_pages}页如下："
+    for chart in ans:
+        # XXX.XXXX FC+ DX Title
+        msg += f"\n{chart['achievements']:.4f}  {combo_types[chart['fc']]:3}  {chart['type']}  {chart['title']}"
+    msg += f"\nCreated by LisaBot, maintained by Koto"
+    return image_to_base64(text_to_image(msg))
+
+
+async def get_level_process(user_in: str, user_id: int):
+    regex = "进度 ([0-9]+\+?)\s?" + combo_ranks_regex + "\s?" + score_ranks_regex + "\s?(.+)?"
+    [level, combo, rank, username] = re.match(regex, user_in).groups()
+    if rank and rank not in score_ranks.keys():
+        return "好像没有这个评级——"
+    if combo and combo not in combo_ranks.keys():
+        return "好像没有这种连击——"
+    cursor.execute(f"SELECT COUNT(*) FROM ChartDifficulty WHERE Level='{level}' AND Version='舞萌DX 2021'")
+    total, count = cursor.fetchone()[0], 0
+    if not total:
+        return "本当にこのレベルが有りますか？"
+    payload = {"username": username} if username else {"qq": user_id}
+    payload["version"] = list(set(version for version in plate_to_version.values()))
+    data = await get_player_data(payload, "plate")
+    if isinstance(data, str):
+        return data
+    if rank and combo:
+        for chart in data["verlist"]:
+            if chart["level"] == level and chart["achievements"] >= score_ranks[rank] \
+                    and combo_ranks[chart["fc"]] <= combo_ranks[combo]:
+                count += 1
+    elif rank:
+        for chart in data["verlist"]:
+            if chart["level"] == level and chart["achievements"] >= score_ranks[rank]:
+                count += 1
+        combo = ""
+    elif combo:
+        for chart in data["verlist"]:
+            if chart["level"] == level and combo_ranks[chart["fc"]] <= combo_ranks[combo]:
+                count += 1
+        rank = ""
+    else:
+        return "何が知ったい？"
+    msg = f"你的等级 {level} {rank} {combo} 完成进度{count}/{total}\n"
+    msg += f"まだ{total - count}残ります〜" if total != count else "できました！"
+    return msg

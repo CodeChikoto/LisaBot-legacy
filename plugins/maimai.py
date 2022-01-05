@@ -15,22 +15,24 @@ base_search = on_command('inner_level_search ', aliases={'定数查歌 '}, block
 level_search = on_command('level_search ', aliases={'等级查歌 '}, block=True)
 name_search = on_command('name_search ', aliases={"查歌 ", "search "}, block=True)
 artist_search = on_command("artist_search ", aliases={"艺术家查歌 ", "曲师查歌 "}, block=True)
-view_song = on_command('view_song ', aliases={"id ", "ID ", "歌曲 "}, block=True)
+view_song = on_regex("id ([0-9]+)\s?(.+)?", block=True)
 view_chart = on_command("view_chart ", aliases={"查谱 ", "看谱 "}, block=True)
-mai_what = on_regex(r".*mai.?什么", block=True)
+mai_what = on_regex(r".*mai\s?什么", block=True)
 which_is = on_regex(r".+是什么歌", block=True)
-calculator = on_regex(f"完成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
-                      f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
-                      f"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", block=True)
+achiv_range = on_regex(f"完成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                       r"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                       r"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", block=True)
 break_dist = on_regex(f"绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                       f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                       f"([0-9]+),([0-9]+),([0-9]+),([0-9]+) ([0-9]+.[0-9]+)", block=True)
-inner_level_random_song = on_regex(r"随歌 " + difficulty_regex + r"([0-9]+)(\.)([0-9])")
-level_random_song = on_regex(r"随歌 " + difficulty_regex + r"([0-9]+)([^\d\.])")
+inner_level_random_song = on_regex("随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])")
+level_random_song = on_regex("随歌 " + difficulty_regex + "\s?([0-9]+\+?)$")
 try_random_chart = on_regex(r"我要大战(.+)", block=True)
-best_40_pic = on_command("best_40", aliases={"b40", "B40"}, block=True)
-best_50_pic = on_command("best_50", aliases={"b50", "B50"}, block=True)
+best_40_pic = on_command("best_40 ", aliases={"b40 ", "B40 "}, block=True)
+best_50_pic = on_command("best_50 ", aliases={"b50 ", "B50 "}, block=True)
 add_alias = on_command("增加别名", block=True)
+achiv_list = on_regex(r"分数列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
+level_rank_process = on_regex("进度 ([0-9]+\+?) " + combo_ranks_regex + "\s?" + score_ranks_regex + "\s?(.+)?")
 
 
 @base_search.handle()
@@ -160,7 +162,7 @@ async def _(bot: Bot, event: Event, state: T_State):
     await which_is.finish(final_msg)
 
 
-@calculator.handle()
+@achiv_range.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg = cal_achiv_range(str(event.get_message()))
     final_msg = Message([
@@ -172,7 +174,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             "type": "text",
             "data": {"text": msg}
         }])
-    await calculator.finish(final_msg)
+    await achiv_range.finish(final_msg)
 
 
 @break_dist.handle()
@@ -343,3 +345,47 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"text": "わかった！"}
             }
         ]))
+
+
+@achiv_list.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    data = await get_achiv_list(str(event.get_message()), event.user_id)
+    if isinstance(data, bytes):
+        final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "image",
+                "data": {
+                    "file": f"base64://{str(data, encoding='utf-8')}"
+                }
+            }])
+    elif isinstance(data, str):
+        final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": data}
+            }])
+    await achiv_list.finish(final_msg)
+
+
+@level_rank_process.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    data = await get_level_process(str(event.get_message()), event.user_id)
+    final_msg = Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": data}
+        }
+    ])
+    await level_rank_process.finish(final_msg)
