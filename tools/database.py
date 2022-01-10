@@ -1,6 +1,5 @@
 import pymysql
 from typing import *
-from threading import Thread
 
 
 class Cursor():
@@ -34,3 +33,7 @@ class Cursor():
 
     def commit(self):
         self.connection.commit()
+
+    def close(self):
+        self.connection.close()
+

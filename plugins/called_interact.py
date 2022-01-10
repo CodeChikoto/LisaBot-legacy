@@ -8,8 +8,8 @@ import re
 from pydantic import BaseSettings, validator
 from copy import deepcopy
 from interact_func.selector import *
-from interact_func.send_help import *
-from os import *
+from tools.image import *
+from os import getcwd
 
 
 class Config(BaseSettings):
@@ -39,7 +39,15 @@ at_called = on_message(rule=_at_called)
 async def help_handle(bot: Bot, event: Event, state: T_State):
     argv = state["argv"]
     if argv[0] in config.command_help:
-        await called.finish(send_help("help"))
+        file = open("text/help", "r")
+        img = image_to_base64(text_to_image(file.read()))
+        await called.finish(Message([{
+                "type": "image",
+                "data": {
+                    "file": f"base64://{str(img, encoding='utf-8')}"
+                }
+            }
+        ]))
 
 
 async def select_handle(bot: Bot, event: Event, state: T_State):

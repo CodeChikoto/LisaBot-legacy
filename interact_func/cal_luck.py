@@ -14,19 +14,30 @@ sp_luckness_39 = "\n今日运气值：3939\n宜：带 fu 出勤\n宜：我草！
 sp_luckness_9 = "\n今日运气值：⑨\n宜：算术\n宜：ばか！\n宜：あたいってば最強ね！"
 
 
-def cal_luck(user_id: str):
+def cal_luck(user_id: str, nickname: str):
     values = []
     date_time = datetime.datetime.now()
     random.seed(int(user_id) + int(date_time.strftime("%Y%m%d")))
-    luckness = random.randint(24, 4000)
-    if luckness in [24, 114, 514, 810, 1145, 1919]:
-        msg = sp_luckness_114514
-    elif luckness in [39, 831, 3939]:
-        msg = sp_luckness_39
-    elif luckness in [99, 999]:
-        msg = sp_luckness_9
+    luckness = random.randint(24, 4000) % 100
+    cur_hour = int(time.strftime("%H", time.localtime()))
+    if 6 <= cur_hour <= 11:
+        msg = f"おはよう！{nickname}"
+    elif 18 <= cur_hour <= 24:
+        msg = f"こんばんは！{nickname}"
     else:
-        msg = f"\n今日运气值：{luckness % 100}\n"
+        msg = ""
+    if luckness in [24, 114, 514, 810, 1145, 1919]:
+        msg += sp_luckness_114514
+    elif luckness in [39, 831, 3939]:
+        msg += sp_luckness_39
+    elif luckness in [99, 999]:
+        msg += sp_luckness_9
+    else:
+        msg += f"\n今日运气值：{luckness}\n"
+        if luckness >= 90:
+            msg += "今日はとってもいいね〜\n"
+        elif luckness <= 10:
+            msg += "今日はちょっと良くないが、大丈夫だ\n"
         for i in range(len(action_list)):
             values.append(random.randint(0, 100))
         for i in range(len(action_list)):

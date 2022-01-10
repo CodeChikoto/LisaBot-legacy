@@ -1,25 +1,22 @@
 from maimai_func.song_func import *
 from maimai_func.chart_func import *
-from maimai_func.best_40 import generate
+from maimai_func.best_list import *
 from tools.image import *
 from nonebot import *
 from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
+from tools.shared_var import *
 
-with open("./text/difficulty_alias.json", "r") as file:
-    difficulty_alias = json.load(file)
-    chart_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")([0-9]+)"
-    difficulty_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")"
 
-base_search = on_command('inner_level_search ', aliases={'定数查歌 '}, block=True)
-level_search = on_command('level_search ', aliases={'等级查歌 '}, block=True)
+inner_level_search = on_regex("定数查歌 " + difficulty_regex + "?([0-9]+\.[0-9])")
+level_search = on_regex("等级查歌 " + difficulty_regex + "?([0-9]+\+?)")
 name_search = on_command('name_search ', aliases={"查歌 ", "search "}, block=True)
 artist_search = on_command("artist_search ", aliases={"艺术家查歌 ", "曲师查歌 "}, block=True)
 view_song = on_regex("id ([0-9]+)\s?(.+)?", block=True)
-view_chart = on_command("view_chart ", aliases={"查谱 ", "看谱 "}, block=True)
+view_chart = on_regex("(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?", block=True)
 mai_what = on_regex(r".*mai\s?什么", block=True)
-which_is = on_regex(r".+是什么歌", block=True)
-achiv_range = on_regex(f"完成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+which_is = on_regex(r"(.+)是什么歌", block=True)
+achie_range = on_regex(f"完成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                        r"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                        r"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", block=True)
 break_dist = on_regex(f"绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
@@ -28,14 +25,13 @@ break_dist = on_regex(f"绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([
 inner_level_random_song = on_regex("随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])")
 level_random_song = on_regex("随歌 " + difficulty_regex + "\s?([0-9]+\+?)$")
 try_random_chart = on_regex(r"我要大战(.+)", block=True)
-best_40_pic = on_command("best_40", aliases={"b40", "B40"}, block=True)
-best_50_pic = on_command("best_50", aliases={"b50", "B50"}, block=True)
-add_alias = on_command("增加别名", block=True)
-achiv_list = on_regex(r"分数列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
-level_rank_process = on_regex("进度 ([0-9]+\+?) " + combo_ranks_regex + "\s?" + score_ranks_regex + "\s?(.+)?")
+best_list_pic = on_regex(r"^(b|B)(4|5)0\s?(.+)?")
+add_alias = on_regex("增加别名 ([0-9]+) (.+)", block=True)
+achie_list = on_regex(r"分数列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
+level_process = on_regex("进度 ([0-9]+\+?) " + combo_ranks_regex + "\s?" + achie_ranks_regex + "\s?(.+)?")
 
 
-@base_search.handle()
+@inner_level_search.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg = search_by_inner_level(str(event.get_message()))
     final_msg = Message([
@@ -43,7 +39,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             "type": "text",
             "data": {"text": msg}
         }])
-    await base_search.finish(final_msg)
+    await inner_level_search.finish(final_msg)
 
 
 @level_search.handle()
@@ -162,9 +158,9 @@ async def _(bot: Bot, event: Event, state: T_State):
     await which_is.finish(final_msg)
 
 
-@achiv_range.handle()
+@achie_range.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    msg = cal_achiv_range(str(event.get_message()))
+    msg = cal_achie_range(str(event.get_message()))
     final_msg = Message([
         {
             "type": "reply",
@@ -174,7 +170,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             "type": "text",
             "data": {"text": msg}
         }])
-    await achiv_range.finish(final_msg)
+    await achie_range.finish(final_msg)
 
 
 @break_dist.handle()
@@ -257,51 +253,43 @@ async def _(bot: Bot, event: Event, state: T_State):
         await inner_level_random_song.finish("ごめん〜风控了ね！\n" + msg)
 
 
-@best_40_pic.handle()
+@best_list_pic.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    username = str(event.get_message()).strip()
-    if username == "":
-        payload = {'qq': str(event.get_user_id())}
-    else:
-        payload = {'username': username}
-    img, success = await generate(payload)
-    if success == 400:
-        await best_40_pic.send("未找到此玩家，请确保此玩家的用户名和查分器中的用户名相同。")
-    elif success == 403:
-        await best_40_pic.send("该用户禁止了其他人获取数据。")
-    else:
-        await best_40_pic.send(Message([
+    await best_list_pic.send(Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": "ちょっと待ってください〜（B50 时间较长哦）"}
+        }
+    ]))
+    img, error = await get_best_pic(str(event.get_message()), event.user_id)
+    final_msg = None
+    if error:
+        final_msg = Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": error}
+        }
+    ])
+    elif img:
+        final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "image",
-                "data": {
-                    "file": f"base64://{str(image_to_base64(img), encoding='utf-8')}"
-                }
+                "data": {"file": f"base64://{img}"}
             }
-        ]))
-
-
-@best_50_pic.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    username = str(event.get_message()).strip()
-    if username == "":
-        payload = {'qq': str(event.get_user_id())}
-    else:
-        payload = {'username': username}
-    payload["b50"] = True
-    img, success = await generate(payload)
-    if success == 400:
-        await best_50_pic.send("未找到此玩家，请确保此玩家的用户名和查分器中的用户名相同。")
-    elif success == 403:
-        await best_50_pic.send("该用户禁止了其他人获取数据。")
-    else:
-        await best_50_pic.send(Message([
-            {
-                "type": "image",
-                "data": {
-                    "file": f"base64://{str(image_to_base64(img), encoding='utf-8')}"
-                }
-            }
-        ]))
+        ])
+    await best_list_pic.finish(final_msg)
 
 
 @try_random_chart.handle()
@@ -334,22 +322,22 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @add_alias.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    if add_alias_handle(str(event.get_message())):
-        await add_alias.finish(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
-                "type": "text",
-                "data": {"text": "わかった！"}
-            }
-        ]))
+    add_alias_handle(str(event.get_message()))
+    await add_alias.finish(Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": "わかった！"}
+        }
+    ]))
 
 
-@achiv_list.handle()
+@achie_list.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    data = await get_achiv_list(str(event.get_message()), event.user_id)
+    data = await get_achie_list(str(event.get_message()), event.user_id)
     if isinstance(data, bytes):
         final_msg = Message([
             {
@@ -372,10 +360,10 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": data}
             }])
-    await achiv_list.finish(final_msg)
+    await achie_list.finish(final_msg)
 
 
-@level_rank_process.handle()
+@level_process.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     data = await get_level_process(str(event.get_message()), event.user_id)
     final_msg = Message([
@@ -388,4 +376,4 @@ async def _(bot: Bot, event: Event, state: T_State):
             "data": {"text": data}
         }
     ])
-    await level_rank_process.finish(final_msg)
+    await level_process.finish(final_msg)

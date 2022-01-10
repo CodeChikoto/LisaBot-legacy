@@ -7,7 +7,6 @@ from nonebot.typing import *
 from interact_func.cal_luck import *
 from interact_func.emoji import *
 from interact_func.persecute import *
-from interact_func.send_help import *
 from interact_func.selector import *
 from plugins.called_interact import mute_list
 import re
@@ -26,6 +25,11 @@ async def _mute_poke(bot: Bot, event: Event, state: dict) -> bool:
     return value
 
 
+async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
+    value = event.message_type == "private" and event.user_id == 993433577
+    return value
+
+
 random.seed(time.time())
 # {group_id: last_message, count, has_repeated}
 msg_record = {}
@@ -34,9 +38,10 @@ id, title, img_path, koto_last = None, None, None, None
 
 poke_back = on_notice(rule=_bot_poked, block=True)
 repeat = on_message()
-is_online = on_regex(r"(.+)(在线么)")
+is_online = on_regex(r"(.+)在线(么|吗)")
 poke_mute = on_notice(rule=_mute_poke)
 today_luck = on_command("today_luck", aliases={"今日运势"})
+public_notice = on_command(rule=_from_koto, cmd="/public ", aliases={"/广播 ", "/公告 "})
 
 
 @poke_back.handle()
@@ -83,20 +88,22 @@ async def _(bot: Bot, event: Event, state: T_State):
 @repeat.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     global koto_last
-    message = str(event.get_message())
-    session_src, session_id = event.get_session_id().split('_'), event.get_session_id()
-    if session_src[0] == "group" and event.get_type() == "message":
-        group_id, user_id = session_src[1], session_src[2]
-        if group_id not in msg_record:
-            msg_record[group_id] = [hash(message), 1]
-        else:
-            if hash(message) == msg_record[group_id][0]:
-                msg_record[group_id][1] += 1
-                if msg_record[group_id][1] == 4:
-                    await repeat.send(message)
-            else:
+    message, user_id = str(event.get_message()), event.user_id
+    try:
+        group_id = event.group_id
+        if event.message_type == "group" and event.get_type() == "message":
+            if group_id not in msg_record:
                 msg_record[group_id] = [hash(message), 1]
-    if re.search("993433577", session_id):
+            else:
+                if hash(message) == msg_record[group_id][0]:
+                    msg_record[group_id][1] += 1
+                    if msg_record[group_id][1] == 4:
+                        await repeat.send(message)
+                else:
+                    msg_record[group_id] = [hash(message), 1]
+    except AttributeError:
+        pass
+    if user_id == 993433577:
         koto_last = time.time()
     await repeat.finish()
 
@@ -104,7 +111,7 @@ async def _(bot: Bot, event: Event, state: T_State):
 @is_online.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     global koto_last
-    regex = r"(.+)(在线么)"
+    regex = r"(.+)在线(么|吗)"
     groups = re.match(regex, str(event.get_message())).groups()
     if groups[0] in ["琴琴", "琴"]:
         if not koto_last:
@@ -135,12 +142,20 @@ async def _(bot: Bot, event: Event, state: T_State):
 async def _(bot: Bot, event: Event, state: T_State):
     msg = Message([
         {
-            "type": "at",
-            "data": {"qq": event.get_user_id()}
+            "type": "reply",
+            "data": {"id": event.message_id}
         },
         {
             "type": "text",
-            "data": {"text": cal_luck(event.get_user_id())}
+            "data": {"text": cal_luck(event.get_user_id(), dict(event.sender)["nickname"])}
         }
     ])
     await today_luck.finish(msg)
+
+
+@public_notice.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    msg = event.get_message()
+    groups_list = await bot.get_group_list()
+    for group in groups_list:
+        await bot.send_group_msg(group_id=group["group_id"], message=msg)
