@@ -7,7 +7,6 @@ from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 from tools.shared_var import *
 
-
 inner_level_search = on_regex("定数查歌 " + difficulty_regex + "?([0-9]+\.[0-9])")
 level_search = on_regex("等级查歌 " + difficulty_regex + "?([0-9]+\+?)")
 name_search = on_command('name_search ', aliases={"查歌 ", "search "}, block=True)
@@ -16,7 +15,7 @@ view_song = on_regex("id ([0-9]+)\s?(.+)?", block=True)
 view_chart = on_regex("(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?", block=True)
 mai_what = on_regex(r".*mai\s?什么", block=True)
 which_is = on_regex(r"(.+)是什么歌", block=True)
-achie_range = on_regex(f"完成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+achie_range = on_regex(f"达成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                        r"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                        r"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", block=True)
 break_dist = on_regex(f"绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
@@ -27,8 +26,10 @@ level_random_song = on_regex("随歌 " + difficulty_regex + "\s?([0-9]+\+?)$")
 try_random_chart = on_regex(r"我要大战(.+)", block=True)
 best_list_pic = on_regex(r"^(b|B)(4|5)0\s?(.+)?")
 add_alias = on_regex("增加别名 ([0-9]+) (.+)", block=True)
-achie_list = on_regex(r"分数列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
+achie_list = on_regex(r"(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
 level_process = on_regex("进度 ([0-9]+\+?) " + combo_ranks_regex + "\s?" + achie_ranks_regex + "\s?(.+)?")
+plate_process = on_regex(f"^({'|'.join(version_alias.keys())})?({'|'.join(plate_alias.keys())})进度\s?(.+)?")
+plate_list = on_command("plate_list", aliases={"牌子条件", "牌子列表"})
 
 
 @inner_level_search.handle()
@@ -127,7 +128,7 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @mai_what.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    msg, img_path = random_any("")
+    msg, img_path = random_any()
     if img_path:
         final_msg = Message([
             {
@@ -269,15 +270,15 @@ async def _(bot: Bot, event: Event, state: T_State):
     final_msg = None
     if error:
         final_msg = Message([
-        {
-            "type": "reply",
-            "data": {"id": event.message_id}
-        },
-        {
-            "type": "text",
-            "data": {"text": error}
-        }
-    ])
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": error}
+            }
+        ])
     elif img:
         final_msg = Message([
             {
@@ -377,3 +378,34 @@ async def _(bot: Bot, event: Event, state: T_State):
         }
     ])
     await level_process.finish(final_msg)
+
+
+@plate_process.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    msg = await get_plate_process(str(event.get_message()), event.user_id)
+    final_msg = Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": msg}
+        }
+    ])
+    await plate_process.finish(final_msg)
+
+
+@plate_list.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    await plate_list.finish(Message([
+        {
+            "type": "text",
+            "data": {"text": "极 FC，将 SSS，神 AP，舞舞 FSD\n"}
+        },
+        {
+            "type": "image",
+            "data": {
+                "file": f"file://{os.getcwd()}/material/PlateList.jpg"
+            }
+        }]))

@@ -2,7 +2,7 @@ from typing import *
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
-from tools.database import Cursor
+from tools.database import database_pool
 from tools.get_data_func import *
 from re import match
 from tools.image import image_to_base64
@@ -35,13 +35,14 @@ class BestList():
             self.rating = data["rating"]
             self.dx_rating = self.rank_rating + self.rating
             self.old_list, self.new_list = data["charts"]["sd"], data["charts"]["dx"]
+            self.plate = data["plate"]
             return True
         else:
             self.error = data
             return False
 
     async def get_best_50(self) -> bool:
-        achi_rank_coef = {"SSS+": 22.4, "SSS": 21.6, "SS+": 21.1, "SS": 20.8, "S+": 20.0, "S": 20.0,
+        achi_rank_coef = {"SSS+": 22.4, "SSS": 21.6, "SS+": 21.1, "SS": 20.8, "S+": 20.3, "S": 20.0,
                           "AAA": 16.8, "AA": 15.2, "A": 13.6, "BBB": 12.0, "BB": 11.2, "B": 9.6,
                           "C": 8.0, "D": 0}
 
@@ -57,18 +58,20 @@ class BestList():
 
         def _fill_info(start: int, end: int, lock):
             nonlocal charts
-            cursor = Cursor()
+            index_to_str = {0: "Basic", 1: "Advanced", 2: "Expert", 3: "Master", 4: "Re:MASTER"}
+            conn = database_pool.connection()
+            cursor = conn.cursor()
             for chart in charts[start:end]:
+                difficulty = index_to_str[chart["level_index"]]
                 title_rep = chart["title"].replace("'", "\\'")
-                cursor.execute(f"SELECT Id,Difficulty,InnerLevel FROM ChartDifficulty WHERE Id IN "
-                               f"(SELECT Id FROM SongInfo WHERE Title='{title_rep}') "
-                               f"AND Level='{chart['level']}' AND Version='舞萌DX 2021'")
-                # resp = cursor.fetchone()  # return type is fucking dict
-                [id, difficulty, inner_level] = cursor.fetchone()
+                cursor.execute(f"SELECT Id,InnerLevel FROM ChartDifficulty WHERE Id IN "
+                               f"(SELECT Id FROM SongInfo WHERE Title='{title_rep}' AND ChartType='{chart['type']}') "
+                               f"AND Difficulty='{difficulty}' AND Version='舞萌DX 2021'")
+                [id, inner_level] = cursor.fetchone()
                 chart["ds"] = float(inner_level)
                 chart["ra"], chart["rate"] = _cal_single_rating(chart["achievements"], inner_level)
                 chart["level_label"], chart["song_id"] = difficulty, id
-            cursor.close()
+            conn.close()
             lock.release()
 
         data = await get_player_data(self.payload, "plate")
@@ -99,7 +102,7 @@ class BestList():
             return False
 
     def draw_list(self):
-        difficulty_short = {"Basic": "BSC", "Advanced": "ADV", "Expert": "EXP", "Master": "MST",
+        difficulty_file = {"Basic": "BSC", "Advanced": "ADV", "Expert": "EXP", "Master": "MST",
                             "Re:MASTER": "MST_Re"}
         ranks_alias = {"fcp": "FCp", "fc": "FC", "ap": "AP", "app": "APp",
                        "fs": "FS", "fsp": "FSp", "fsd": "FSD", "fsdp": "FSDp"}
@@ -130,7 +133,7 @@ class BestList():
 
         # frame outside song cover
         def _draw_chart_frame(difficulty: str, x: int, y: int):
-            difficulty = difficulty_short[difficulty]
+            difficulty = difficulty_file[difficulty]
             chart_frame_img = Image.open(f"./material/UI_UPE_MusicJacket_Base_{difficulty}.png")
             chart_frame_img = chart_frame_img.resize((188, 171)) if self.mode == "B40" \
                 else chart_frame_img.resize((115, 105))
@@ -201,7 +204,8 @@ class BestList():
             x_ar, y_ar = (391, 348) if self.mode == "B40" else (306, 250)
             x_title, y_title = (199, 300) if self.mode == "B40" else (142, 219)
             x1_lr, y1_lr, x2_lr, y2_lr = (327, 412, 336, 405) if self.mode == "B40" else (246, 289, 252, 285)
-            cursor = Cursor()
+            conn = database_pool.connection()
+            cursor = conn.cursor()
             i = 0
             for y in range(7):
                 if i >= len(self.old_list):
@@ -224,7 +228,7 @@ class BestList():
                     _draw_level_rate(chart_info["ds"], x1_lr + x * x_gap, y1_lr + y * y_gap,
                                      chart_info["ra"], x2_lr + x * x_gap, y2_lr + y * y_gap)
                     i += 1
-            cursor.close()
+            conn.close()
             lock.release()
 
         def _draw_new_list(lock):
@@ -237,7 +241,8 @@ class BestList():
             x_title, y_title = (199, 1247) if self.mode == "B40" else (142, 1058)
             x1_lr, y1_lr, x2_lr, y2_lr = (327, 1359, 336, 1352) if self.mode == "B40" else (246, 1128, 252, 1124)
             i = 0
-            cursor = Cursor()
+            conn = database_pool.connection()
+            cursor = conn.cursor()
             for y in range(3):
                 if i >= len(self.new_list):
                     break
@@ -259,7 +264,7 @@ class BestList():
                     _draw_level_rate(chart_info["ds"], x1_lr + x * x_gap, y1_lr + y * y_gap,
                                      chart_info["ra"], x2_lr + x * x_gap, y2_lr + y * y_gap)
                     i += 1
-            cursor.close()
+            conn.close()
             lock.release()
 
         lock1, lock2 = _thread.allocate_lock(), _thread.allocate_lock()
@@ -268,7 +273,10 @@ class BestList():
         _thread.start_new_thread(_draw_new_list, (lock2,))
         while lock1.locked() or lock2.locked():
             pass
-
+    
+    def draw_name_plate(self):
+        pass
+    
     def draw_dxrating(self):
         def _specific_frame():
             if self.dx_rating < 1000:
@@ -347,7 +355,8 @@ class BestList():
         rating_note = f"B40:  {self.rating} + {self.rank_rating}" \
             if self.mode == "B40" else ""
         len_x = font_note.getsize(rating_note)[0]
-        self.bg_draw.text((544 + int((353 - len_x) / 2), 144), rating_note, "black", font=font_note)
+        self.bg_draw.text((544 + int((353 - len_x) / 2), 144), rating_note, "white", font=font_note,
+                          stroke_width=2, stroke_fill="black")
 
     def draw_name(self):
         name_font = ImageFont.truetype("./SourceHanSans_17.ttf", 30, encoding="utf-8")
@@ -361,18 +370,11 @@ class BestList():
                 data = requests.get(f'http://q1.qlogo.cn/g?b=qq&nk={self.payload["qq"]}&s=640')
                 with open(f"./cache/head{self.payload['qq']}.png", "wb") as head_file:
                     head_file.write(data.content)
-                if self.mode == "B40":
-                    head_img = Image.open(f"./cache/head{self.payload['qq']}.png")
-                    head_img = head_img.resize((141, 141))
-                    head_img_mask = Image.open(f"./material/UI_Icon_000001.png")
-                    head_img_mask = head_img_mask.resize((141, 141))
-                    self.bg_img.paste(head_img, (387, 31), mask=head_img_mask)
-                else:
-                    head_img = Image.open(f"./cache/head{self.payload['qq']}.png")
-                    head_img = head_img.resize((143, 143))
-                    head_img_mask = Image.open(f"./material/UI_Icon_000001.png")
-                    head_img_mask = head_img_mask.resize((143, 143))
-                    self.bg_img.paste(head_img, (385, 29), mask=head_img_mask)
+                head_img = Image.open(f"./cache/head{self.payload['qq']}.png")
+                head_img = head_img.resize((143, 143))
+                head_img_mask = Image.open(f"./material/UI_Icon_000001.png")
+                head_img_mask = head_img_mask.resize((143, 143))
+                self.bg_img.paste(head_img, (385, 29), mask=head_img_mask)
             finally:
                 pass
 
@@ -402,13 +404,11 @@ async def get_best_pic(user_in: str, user_id: int):
     _, mode, username = match(regex, user_in).groups()
     mode = "B40" if mode == '4' else "B50"
     payload = {"username": username} if username else {"qq": str(user_id)}
-    payload["version"] = list(set(version for version in plate_to_version.values()))
+    payload["version"] = list(set(version for version in version_alias.values()))
     if mode == "B40":
         best_list = BestList(payload, "B40")
-        await best_list.generate()
-        pic, error = best_list.get_pic()
     else:
         best_list = BestList(payload, "B50")
-        await best_list.generate()
-        pic, error = best_list.get_pic()
+    await best_list.generate()
+    pic, error = best_list.get_pic()
     return str(image_to_base64(pic), encoding="utf-8"), error

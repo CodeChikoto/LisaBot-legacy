@@ -1,13 +1,12 @@
 import re
 import os
 import random
-from tools.database import *
+from tools.database import database_pool
 import json
 from tools.shared_var import *
 
 
 random.seed(2508)
-cursor = Cursor()
 
 
 def search_by_inner_level(user_in: str):
@@ -16,10 +15,13 @@ def search_by_inner_level(user_in: str):
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
+    conn = database_pool.connection()
+    cursor = conn.cursor()
     cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
                    f"(SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} AND "
                    f"Difficulty LIKE '{difficulty}')")
     res = cursor.fetchall()
+    conn.close()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
         res = random.sample(res, 30)
@@ -32,8 +34,11 @@ def search_by_inner_level(user_in: str):
 
 def search_by_artist(keyword: str):
     keyword = keyword.strip().replace("'", "\\'")
+    conn = database_pool.connection()
+    cursor = conn.cursor()
     cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE Artist LIKE '%{keyword}%'")
     res = cursor.fetchall()
+    conn.close()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
         res = random.sample(res, 30)
@@ -50,10 +55,13 @@ def search_by_level(user_in: str):
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
+    conn = database_pool.connection()
+    cursor = conn.cursor()
     cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
                    f"(SELECT Id FROM ChartDifficulty WHERE Level='{level}' AND "
                    f"Difficulty LIKE '{difficulty}')")
     res = cursor.fetchall()
+    conn.close()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
         res = random.sample(res, 30)
@@ -69,9 +77,12 @@ def search_by_name(keyword: str):
         regex = "(.+)是什么歌"
         [keyword] = re.match(regex, keyword).groups()
     keyword = keyword.strip().replace("'", "\\'")
+    conn = database_pool.connection()
+    cursor = conn.cursor()
     cursor.execute(f"SELECT DISTINCT Id,Title FROM SongInfo WHERE Title LIKE '%{keyword}%' "
                    f"OR Id IN (SELECT Id FROM SongAlias WHERE Alias='{keyword}')")
     res = cursor.fetchall()
+    conn.close()
     if len(res) > 30:
         msg = "结果过多，仅显示30条："
         res = random.sample(res, 30)
@@ -88,14 +99,19 @@ def random_by_level(user_in: str):
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
+    conn = database_pool.connection()
+    cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE Level='{level}' "
                             f"AND Difficulty LIKE '{difficulty}'")
     rand_int = random.randint(0, amount - 1)
     if amount:
         [id] = cursor.fetchall()[rand_int]
+        conn.close()
         return select_song(f"id {id}")
     else:
+        conn.close()
         return "随机条件不对哦～", None
+
 
 
 def random_by_inner_level(user_in: str):
@@ -103,26 +119,35 @@ def random_by_inner_level(user_in: str):
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！", ""
     difficulty = difficulty_alias[difficulty] if difficulty and difficulty in difficulty_alias else '%'
+    conn = database_pool.connection()
+    cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} "
                             f"AND Difficulty LIKE '{difficulty}'")
     rand_int = random.randint(0, amount - 1)
     if amount:
         [id] = cursor.fetchall()[rand_int]
+        conn.close()
         return select_song(f"id {id}")
     else:
+        conn.close()
         return "随机条件不对哦～", "None"
 
 
-def random_any(user_in: str):
+def random_any():
+    conn = database_pool.connection()
+    cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM SongInfo")
     rand_int = random.randint(0, amount - 1)
-    id = cursor.fetchall()[rand_int][0]
+    [id] = cursor.fetchall()[rand_int]
+    conn.close()
     return select_song(f"id {id}")
 
 
 def select_song(user_in: str):
     [id, version] = re.match("id ([0-9]+)\s?(.+)?", user_in).groups()
     version = "舞萌DX 2021" if not version else version
+    conn = database_pool.connection()
+    cursor = conn.cursor()
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
@@ -150,11 +175,16 @@ BPM: {res[3]}
     msg += ",".join(level)
     msg += '\n定数：'
     msg += ",".join(inner_level)
+    conn.close()
     return msg, img_path
 
 
 def add_alias_handle(user_in: str):
     regex = "增加别名 ([0-9]+) (.+)"
     [id, alias] = re.match(regex, user_in).groups()
+    conn = database_pool.connection()
+    cursor = conn.cursor()
     cursor.execute(f"INSERT IGNORE SongAlias (Id,Alias) VALUES ({id},'{alias}')")
-    cursor.commit()
+    conn.commit()
+    conn.close()
+

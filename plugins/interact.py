@@ -6,7 +6,6 @@ from nonebot.adapters.cqhttp.bot import *
 from nonebot.typing import *
 from interact_func.cal_luck import *
 from interact_func.emoji import *
-from interact_func.persecute import *
 from interact_func.selector import *
 from plugins.called_interact import mute_list
 import re
