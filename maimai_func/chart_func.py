@@ -322,7 +322,7 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
                     finished[chart["level_index"]] += 1
         lock.release()
 
-    def _pop_unneeded_charts(charts: list[dict], lock):
+    def _pop_unneeded_charts(charts, lock):
         nonlocal plate, ver, charts_part
         i = 0
         while i < len(charts):
