@@ -1,3 +1,7 @@
+import pymysql
+from dbutils.pooled_db import PooledDB
+
+
 difficulty_alias = {
     "bas": "Basic",
     "bsc": "Basic",
@@ -19,8 +23,7 @@ difficulty_alias = {
     "白": "Re:MASTER",
     "re:master": "Re:MASTER",
     "remaster": "Re:MASTER",
-    "": ""
-}
+    "": ""}
 difficulty_short = ["BSC", "ADV", "EXP", "MST", "REM"]
 chart_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")([0-9]+)"
 difficulty_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")"
@@ -45,20 +48,40 @@ version_alias = {
     '舞': 'maimai FiNALE',
     '熊': 'maimai でらっくす',
     '華': 'maimai でらっくす PLUS',
-    # '華': 'maimai でらっくす',
     '华': 'maimai でらっくす PLUS',
-    # '华': 'maimai でらっくす',
     '爽': 'maimai でらっくす Splash',
-    '煌': 'maimai でらっくす Splash PLUS',
-    # '煌': 'maimai でらっくす Splash',
-}
-plate_alias = {
+    '煌': 'maimai でらっくす Splash PLUS'}
+plate_require = {
     "极": "FC",
+    "極": "FC",
     "将": "SSS",
     "神": "AP",
     "舞舞": "FSD",
-    "霸者": "A"
-}
+    "霸者": "A",
+    "覇者": "A"}
+ver_num_list = {
+    "真": 6100,
+    "超": 6104,
+    "檄": 6108,
+    "橙": 6112,
+    "暁": 6116,
+    "桃": 6120,
+    "櫻": 6124,
+    "紫": 6128,
+    "菫": 6132,
+    "白": 6136,
+    "雪": 6140,
+    "輝": 6144,
+    "覇者": 6148,
+    "舞": 6149,
+    "熊": 55101,
+    "華": 109101,
+    "爽": 159101}
+plate_num_list = {
+    "極": 0,
+    "将": 1,
+    "神": 2,
+    "舞舞": 3}
 achie_ranks = {'SSS+': 100.5, 'SSS': 100, 'SS+': 99.5, 'SS': 99, 'S+': 98, 'S': 97, 'AAA': 94,
                'AA': 90, 'A': 80, 'BBB': 75, 'BB': 70, 'B': 60, 'C': 50, 'D': 0}
 achie_ranks_regex = f"({'|'.join(achie_ranks.keys())})?"
@@ -77,3 +100,6 @@ new_id_list = [10021, 10181, 10690, 11032, 11089, 11090, 11091, 11092, 11097, 11
                11142, 11143, 11146, 11147, 11148, 11149, 11150, 11152, 11153, 11154, 11155, 11157, 11158,
                11159, 11160, 11175, 11177, 11178, 11179, 11180, 11185, 11186, 11187, 11188, 11189, 11190,
                11191, 11192, 11193, 11194, 11195, 11199, 11200, 11206, 11214, 11215, 11216, 11217, 11221]
+database_pool = PooledDB(creator=pymysql, maxconnections=490, mincached=5, maxcached=None, blocking=True,
+                         maxusage=None, ping=4, host="127.0.0.1", port=3306, user="root", password="Root-User",
+                         database="maimai", charset="utf8")

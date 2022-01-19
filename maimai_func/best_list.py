@@ -2,19 +2,19 @@ from typing import *
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
-from tools.database import database_pool
 from tools.get_data_func import *
 from re import match
 from tools.image import image_to_base64
 from tools.shared_var import *
+from pymysql import connect
 import _thread
+import os
 
 
 class BestList():
     def __init__(self, payload: dict, mode: str):
-        self.rank_rating = 0
-        self.nickname = ""
-        self.rating = 0
+        self.rank_rating, self.rating, self.dx_rating = 0, 0, 0
+        self.nickname, self.plate = "", None
         self.payload = payload
         self.mode = mode
         self.bg_path = "./material/B40.png" if self.mode == "B40" \
@@ -22,8 +22,6 @@ class BestList():
         self.bg_img = Image.open(self.bg_path)
         self.bg_draw = ImageDraw.Draw(self.bg_img)
         self.old_list, self.new_list = [], []
-        self.basic_info = {}
-        self.dx_rating = 0
         self.error = ""
 
     # Nickname, B40 Rating, Rank
@@ -274,125 +272,151 @@ class BestList():
         while lock1.locked() or lock2.locked():
             pass
     
-    def draw_name_plate(self):
-        pass
-    
-    def draw_dxrating(self):
-        def _specific_frame():
-            if self.dx_rating < 1000:
-                return "01"
-            elif self.dx_rating < 2000:
-                return "02"
-            elif self.dx_rating < (3000 if self.mode == "B40" else 4000):
-                return "03"
-            elif self.dx_rating < (4000 if self.mode == "B40" else 7000):
-                return "04"
-            elif self.dx_rating < (5000 if self.mode == "B40" else 10000):
-                return "05"
-            elif self.dx_rating < (6000 if self.mode == "B40" else 12000):
-                return "06"
-            elif self.dx_rating < (7000 if self.mode == "B40" else 13000):
-                return "07"
-            elif self.dx_rating < (8000 if self.mode == "B40" else 14000):
-                return "08"
-            elif self.dx_rating < 8500 and self.mode == "B40":
-                return "09"
-            elif self.dx_rating < 14500 and self.mode == "B50":
-                return "09"
-            elif self.dx_rating < 15000 and self.mode == "B50":
-                return "10"
-            else:
-                return "11"
+    def draw_name_plate(self, lock):
 
-        def _draw_rank_frame():
-            if self.rank_rating == 0:
-                rank_id = "00"
-            elif self.rank_rating == 250:
-                rank_id = "01"
-            elif self.rank_rating == 500:
-                rank_id = "02"
-            elif self.rank_rating == 750:
-                rank_id = "03"
-            elif self.rank_rating == 1000:
-                rank_id = "04"
-            elif self.rank_rating == 1200:
-                rank_id = "05"
-            elif self.rank_rating == 1400:
-                rank_id = "06"
-            elif self.rank_rating == 1500:
-                rank_id = "07"
-            elif self.rank_rating == 1600:
-                rank_id = "08"
-            elif self.rank_rating == 1700:
-                rank_id = "09"
-            elif self.rank_rating == 1800:
-                rank_id = "10"
-            elif self.rank_rating == 1850:
-                rank_id = "11"
-            elif self.rank_rating == 1900:
-                rank_id = "12"
-            elif self.rank_rating == 1950:
-                rank_id = "13"
-            elif self.rank_rating == 2000:
-                rank_id = "14"
-            else:
-                rank_id = str(int(14 + (self.rank_rating - 2000) / 10))
-            rank_img = Image.open(f"./material/UI_Rank_{rank_id}.png")
-            rank_img = rank_img.resize((100, 43))
-            self.bg_img.paste(rank_img, (790, 28), mask=rank_img.split()[3])
+        def _draw_dxrating():
+            def _specific_frame():
+                if self.dx_rating < 1000:
+                    return "01"
+                elif self.dx_rating < 2000:
+                    return "02"
+                elif self.dx_rating < (3000 if self.mode == "B40" else 4000):
+                    return "03"
+                elif self.dx_rating < (4000 if self.mode == "B40" else 7000):
+                    return "04"
+                elif self.dx_rating < (5000 if self.mode == "B40" else 10000):
+                    return "05"
+                elif self.dx_rating < (6000 if self.mode == "B40" else 12000):
+                    return "06"
+                elif self.dx_rating < (7000 if self.mode == "B40" else 13000):
+                    return "07"
+                elif self.dx_rating < (8000 if self.mode == "B40" else 14000):
+                    return "08"
+                elif self.dx_rating < 8500 and self.mode == "B40":
+                    return "09"
+                elif self.dx_rating < 14500 and self.mode == "B50":
+                    return "09"
+                elif self.dx_rating < 15000 and self.mode == "B50":
+                    return "10"
+                else:
+                    return "11"
 
-        rating_frame_img = Image.open(f"./material/UI_CMN_DXRating_{_specific_frame()}.png")
-        rating_frame_img = rating_frame_img.resize((226, 44))
-        self.bg_img.paste(rating_frame_img, (550, 28), mask=rating_frame_img.split()[3])
-        dxrating_str = reversed(str(self.dx_rating))
-        for x, num in zip([725, 708, 690, 672, 655], dxrating_str):
-            num_img = Image.open(f"./material/{num}.png")
-            num_img = num_img.resize((21, 25))
-            self.bg_img.paste(num_img, (x, 38), mask=num_img.split()[3])
-        _draw_rank_frame() if self.mode == "B40" else None
+            def _draw_rank_frame():
+                if self.rank_rating == 0:
+                    rank_id = "00"
+                elif self.rank_rating == 250:
+                    rank_id = "01"
+                elif self.rank_rating == 500:
+                    rank_id = "02"
+                elif self.rank_rating == 750:
+                    rank_id = "03"
+                elif self.rank_rating == 1000:
+                    rank_id = "04"
+                elif self.rank_rating == 1200:
+                    rank_id = "05"
+                elif self.rank_rating == 1400:
+                    rank_id = "06"
+                elif self.rank_rating == 1500:
+                    rank_id = "07"
+                elif self.rank_rating == 1600:
+                    rank_id = "08"
+                elif self.rank_rating == 1700:
+                    rank_id = "09"
+                elif self.rank_rating == 1800:
+                    rank_id = "10"
+                elif self.rank_rating == 1850:
+                    rank_id = "11"
+                elif self.rank_rating == 1900:
+                    rank_id = "12"
+                elif self.rank_rating == 1950:
+                    rank_id = "13"
+                elif self.rank_rating == 2000:
+                    rank_id = "14"
+                else:
+                    rank_id = str(int(14 + (self.rank_rating - 2000) / 10))
+                rank_img = Image.open(f"./material/UI_Rank_{rank_id}.png")
+                rank_img = rank_img.resize((100, 43))
+                plate_img.paste(rank_img, (416, 9), mask=rank_img.split()[3])
 
-        font_note = ImageFont.truetype("./Dongqing.otf", 20, encoding="utf-8")
-        rating_note = f"B40:  {self.rating} + {self.rank_rating}" \
-            if self.mode == "B40" else ""
-        len_x = font_note.getsize(rating_note)[0]
-        self.bg_draw.text((544 + int((353 - len_x) / 2), 144), rating_note, "white", font=font_note,
-                          stroke_width=2, stroke_fill="black")
+            rating_frame_img = Image.open(f"./material/UI_CMN_DXRating_{_specific_frame()}.png")
+            rating_frame_img = rating_frame_img.resize((226, 44))
+            plate_img.paste(rating_frame_img, (176, 9), mask=rating_frame_img.split()[3])
+            dxrating_str = reversed(str(self.dx_rating))
+            for x, num in zip([351, 334, 316, 298, 280], dxrating_str):
+                num_img = Image.open(f"./material/{num}.png")
+                num_img = num_img.resize((21, 25))
+                plate_img.paste(num_img, (x, 19), mask=num_img.split()[3])
+            _draw_rank_frame() if self.mode == "B40" else None
 
-    def draw_name(self):
-        name_font = ImageFont.truetype("./SourceHanSans_17.ttf", 30, encoding="utf-8")
-        nickname = ' '.join(self.nickname)
-        len_x = name_font.getsize(nickname)[0]
-        if len_x > 271:
-            nickname = nickname[:int(271 / len_x * len(nickname))]
-        self.bg_draw.text((567, 80), nickname, "black", name_font)
-        if "qq" in self.payload:
-            try:
-                data = requests.get(f'http://q1.qlogo.cn/g?b=qq&nk={self.payload["qq"]}&s=640')
-                with open(f"./cache/head{self.payload['qq']}.png", "wb") as head_file:
-                    head_file.write(data.content)
-                head_img = Image.open(f"./cache/head{self.payload['qq']}.png")
-                head_img = head_img.resize((143, 143))
-                head_img_mask = Image.open(f"./material/UI_Icon_000001.png")
-                head_img_mask = head_img_mask.resize((143, 143))
-                self.bg_img.paste(head_img, (385, 29), mask=head_img_mask)
-            finally:
-                pass
+            note_img = Image.open("./material/UI_CMN_Shougou_Rainbow.png")
+            note_img = note_img.resize((353, 46))
+            plate_img.paste(note_img, (170, 114), mask=note_img.split()[3])
+            font_note = ImageFont.truetype("./Dongqing.otf", 20, encoding="utf-8")
+            rating_note = f"B40:  {self.rating} + {self.rank_rating}" \
+                if self.mode == "B40" else "B50 Simulation"
+            len_x = font_note.getsize(rating_note)[0]
+            plate_draw.text((170 + int((353 - len_x) / 2), 125), rating_note, "white", font=font_note,
+                              stroke_width=2, stroke_fill="black")
+
+        def _draw_name():
+            white_frame_img = Image.open("./material/UI_WhiteFrame.png")
+            white_frame_img = white_frame_img.resize((345, 59))
+            plate_img.paste(white_frame_img, (174, 59), mask=white_frame_img.split()[3])
+            name_font = ImageFont.truetype("./SourceHanSans_17.ttf", 30, encoding="utf-8")
+            nickname = ' '.join(self.nickname)
+            len_x = name_font.getsize(nickname)[0]
+            if len_x > 271:
+                nickname = nickname[:int(271 / len_x * len(nickname))]
+            plate_draw.text((193, 61), nickname, "black", name_font)
+            if "qq" in self.payload:
+                try:
+                    data = requests.get(f'http://q1.qlogo.cn/g?b=qq&nk={self.payload["qq"]}&s=640')
+                    with open(f"./cache/head{self.payload['qq']}.png", "wb") as head_file:
+                        head_file.write(data.content)
+                    head_img = Image.open(f"./cache/head{self.payload['qq']}.png")
+                    head_img = head_img.resize((143, 143))
+                    head_img_mask = Image.open(f"./material/UI_Icon_000001.png")
+                    head_img_mask = head_img_mask.resize((143, 143))
+                    plate_img.paste(head_img, (11, 10), mask=head_img_mask)
+                finally:
+                    pass
+
+        plate_base = "000001.png"
+        plate_img = Image.open(f"./material/plates/customized/{plate_base}")
+        # from server, version plate base
+        if self.plate:
+            groups = match(f"({'|'.join(ver for ver in ver_num_list.keys())})"
+                           f"({'|'.join(plate for plate in plate_num_list.keys())})?", self.plate).groups()
+            plate_num = ver_num_list[groups[0]] + plate_num_list[groups[1]] if groups[1] else ver_num_list[groups[0]]
+            plate_num += 1 if groups[0] == "真" and groups[1] == "極" else 0
+            plate_base = f"{plate_num:06d}.png"
+            plate_img = Image.open(f"./material/plates/by_version/{plate_base}")
+        # customized plate base
+        elif "qq" in self.payload:
+            conn = connect(host="127.0.0.1", user="root", password="Root-User", db="Player", port=3306)
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT PlateNo FROM PlateSetting WHERE QQId={self.payload['qq']}")
+            ans = cursor.fetchone()
+            plate_base = f"{ans[0]:06d}.png" if ans else plate_base
+            conn.close()
+            plate_img = Image.open(f"./material/plates/customized/{plate_base}") if ans else plate_img
+        plate_img = plate_img.resize((1037, 167))
+        plate_draw = ImageDraw.Draw(plate_img)
+        _draw_name()
+        _draw_dxrating()
+        self.bg_img.paste(plate_img, (374, 19), mask=plate_img.split()[3])
+        lock.release()
 
     def get_pic(self):
         return self.bg_img, self.error
 
     async def generate(self) -> bool:
-        def _draw_others(lock):
-            self.draw_dxrating()
-            self.draw_name()
-            lock.release()
-
         await self.get_basic_info()
         if self.mode == "B50":
             await self.get_best_50()
         lock = _thread.allocate_lock()
         lock.acquire()
-        _thread.start_new_thread(_draw_others, (lock,))
+        _thread.start_new_thread(self.draw_name_plate, (lock,))
         self.draw_list()
         while lock.locked():
             pass
@@ -412,3 +436,19 @@ async def get_best_pic(user_in: str, user_id: int):
     await best_list.generate()
     pic, error = best_list.get_pic()
     return str(image_to_base64(pic), encoding="utf-8"), error
+
+
+def set_name_plate(user_in: str, user_id: int) -> str:
+    regex = "设置姓名框 ([0-9]+)"
+    [plate_num] = match(regex, user_in).groups()
+    plate_num = int(plate_num)
+    if f"{plate_num:06d}.png" in os.listdir("./material/plates/customized"):
+        conn = connect(host="39.106.184.73", user="root", password="Root-User", db="Player", port=3306)
+        cursor = conn.cursor()
+        cursor.execute(f"DELETE FROM PlateSetting WHERE QQId={user_id}")
+        cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")
+        conn.commit()
+        return "できました！"
+    else:
+        return "好像没有这张姓名框？"
+

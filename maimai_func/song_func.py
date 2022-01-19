@@ -1,8 +1,6 @@
 import re
 import os
 import random
-from tools.database import database_pool
-import json
 from tools.shared_var import *
 
 

@@ -28,8 +28,10 @@ best_list_pic = on_regex(r"^(b|B)(4|5)0\s?(.+)?")
 add_alias = on_regex("增加别名 ([0-9]+) (.+)", block=True)
 achie_list = on_regex(r"(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
 level_process = on_regex("进度 ([0-9]+\+?) " + combo_ranks_regex + "\s?" + achie_ranks_regex + "\s?(.+)?")
-plate_process = on_regex(f"^({'|'.join(version_alias.keys())})?({'|'.join(plate_alias.keys())})进度\s?(.+)?")
+plate_process = on_regex(f"^({'|'.join(version_alias.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?")
 plate_list = on_command("plate_list", aliases={"牌子条件", "牌子列表"})
+view_name_plate = on_command("view_plates_list", aliases={"查看名牌板", "查看姓名框"})
+custom_name_plate = on_regex("^设置姓名框 ([0-9]+)")
 
 
 @inner_level_search.handle()
@@ -409,3 +411,34 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "file": f"file://{os.getcwd()}/material/PlateList.jpg"
             }
         }]))
+
+
+@view_name_plate.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    await view_name_plate.finish(Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "image",
+            "data": {
+                "file": f"file://{os.getcwd()}/material/plates/customizedable.png"
+            }
+        }]))
+
+
+@custom_name_plate.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    msg = set_name_plate(str(event.get_message()), event.user_id)
+    final_msg = Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": msg}
+        }
+    ])
+    await custom_name_plate.finish(final_msg)

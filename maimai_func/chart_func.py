@@ -2,7 +2,6 @@ import re
 import random
 import os
 from tools.get_data_func import *
-from tools.database import database_pool
 from tools.image import *
 from tools.shared_var import *
 from _thread import start_new_thread, allocate_lock
@@ -308,17 +307,17 @@ async def get_level_process(user_in: str, user_id: int):
 async def get_plate_process(user_in: str, user_id: int) -> str:
     def _find_finished(start: int, end: int, lock, plate: str):
         nonlocal charts, finished
-        if plate_alias[plate] in achie_ranks.keys():
+        if plate_require[plate] in achie_ranks.keys():
             for chart in charts[start:end]:
-                if chart["achievements"] >= achie_ranks[plate_alias[plate]]:
+                if chart["achievements"] >= achie_ranks[plate_require[plate]]:
                     finished[chart["level_index"]] += 1
-        elif plate_alias[plate] in combo_ranks.keys():
+        elif plate_require[plate] in combo_ranks.keys():
             for chart in charts[start:end]:
-                if combo_ranks[combo_upper[chart["fc"]]] <= combo_ranks[plate_alias[plate]]:
+                if combo_ranks[combo_upper[chart["fc"]]] <= combo_ranks[plate_require[plate]]:
                     finished[chart["level_index"]] += 1
-        elif plate_alias[plate] in sync_ranks.keys():
+        elif plate_require[plate] in sync_ranks.keys():
             for chart in charts[start:end]:
-                if sync_ranks[sync_upper[chart["fs"]]] <= sync_ranks[plate_alias[plate]]:
+                if sync_ranks[sync_upper[chart["fs"]]] <= sync_ranks[plate_require[plate]]:
                     finished[chart["level_index"]] += 1
         lock.release()
 
@@ -335,7 +334,7 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
         charts_part += charts
         lock.release()
 
-    regex = f"({'|'.join(version_alias.keys())})?({'|'.join(plate_alias.keys())})进度\s?(.+)?"
+    regex = f"({'|'.join(version_alias.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
     # ver = 版本，plate = 牌子/霸者
     ver, plate, username = re.match(regex, user_in).groups()
     ver = "真" if ver == "初" else ("熊" if ver in ['華', '华'] else ver)
@@ -420,7 +419,7 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
         pass
 
     msg = f"你的{ver if ver else ''}{plate}总完成进度{sum(finished)}/{chart_amount}\n" \
-          f"{plate}的达成要求是 {plate_alias[plate]}\n" \
+          f"{plate}的达成要求是 {plate_require[plate]}\n" \
           f"未完成情况如下："
     for i, difficulty in enumerate(["Basic", "Advanced", "Expert", "Master"]):
         msg += f"\n{difficulty}  {song_amount - finished[i]}/{song_amount}"
