@@ -225,7 +225,7 @@ async def get_achie_list(user_in: str, user_id: int):
         lock = allocate_lock()
         lock.acquire()
         locks_list.append(lock)
-    # for i in range(4):
+        # for i in range(4):
         start_new_thread(_find_level_achi, (int(played / 4 * i), int(played / 4 * (i + 1)), locks_list[i]))
     while any(lock.locked() for lock in locks_list):
         pass
@@ -295,7 +295,7 @@ async def get_level_process(user_in: str, user_id: int):
         lock = allocate_lock()
         lock.acquire()
         locks_list.append(lock)
-    # for i in range(4):
+        # for i in range(4):
         start_new_thread(_check_each, (int(played / 4 * i), int(played / 4 * (i + 1)), locks_list[i]))
     while any(lock.locked() for lock in locks_list):
         pass
@@ -403,7 +403,7 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
         lock = allocate_lock()
         lock.acquire()
         locks_list.append(lock)
-    # for i in range(4):
+        # for i in range(4):
         start_new_thread(_pop_unneeded_charts, (charts[int(played / 4 * i):int(played / 4 * (i + 1))], locks_list[i]))
     while any(lock.locked() for lock in locks_list):
         pass
@@ -413,18 +413,21 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
     played, finished = len(charts), [0, 0, 0, 0, 0]
     for i in range(4):
         locks_list[i].acquire()
-    # for i in range(4):
+        # for i in range(4):
         start_new_thread(_find_finished, (int(played / 4 * i), int(played / 4 * (i + 1)), locks_list[i], plate))
     while any(lock.locked() for lock in locks_list):
         pass
 
-    msg = f"你的{ver if ver else ''}{plate}总完成进度{sum(finished)}/{chart_amount}\n" \
-          f"{plate}的达成要求是 {plate_require[plate]}\n" \
-          f"未完成情况如下："
-    for i, difficulty in enumerate(["Basic", "Advanced", "Expert", "Master"]):
-        msg += f"\n{difficulty}  {song_amount - finished[i]}/{song_amount}"
-    if plate == "霸者" or ver == '舞':
-        msg += f"\nRe:MASTER  {chart_amount - 4 * song_amount - finished[4]}/{chart_amount - 4 * song_amount}"
-    msg += f"\n剩余{chart_amount - sum(finished)}张谱" \
-           f"\n单刷最快需要{int(ceil((chart_amount - sum(finished)) / 3))}局捏！"
+    msg = f"你的{ver if ver else ''}{plate}总完成进度{sum(finished)}/{chart_amount}\n"
+    if finished != chart_amount:
+        msg += f"{plate}的达成要求是 {plate_require[plate]}\n" \
+               f"未完成情况如下："
+        for i, difficulty in enumerate(["Basic", "Advanced", "Expert", "Master"]):
+            msg += f"\n{difficulty}  {song_amount - finished[i]}/{song_amount}"
+        if plate == "霸者" or ver == '舞':
+            msg += f"\nRe:MASTER  {chart_amount - 4 * song_amount - finished[4]}/{chart_amount - 4 * song_amount}"
+        msg += f"\n剩余{chart_amount - sum(finished)}张谱" \
+               f"\n单刷最快需要{int(ceil((chart_amount - sum(finished)) / 3))}局捏！"
+    else:
+        msg += "できました！"
     return msg

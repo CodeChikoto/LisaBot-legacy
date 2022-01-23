@@ -124,7 +124,16 @@ async def _(bot: Bot, event: Event, state: T_State):
             message = str(int(interval)) + "秒前に最後のメッセージ、いなさそうだ"
         else:
             message = "正体なく眠ています"
-        await is_online.finish(message)
+        await is_online.finish(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": message}
+            }
+        ]))
 
 
 @poke_mute.handle()

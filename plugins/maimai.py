@@ -99,8 +99,8 @@ async def _(bot: Bot, event: Event, state: T_State):
 @view_song.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg, img_path = select_song(str(event.get_message()))
-    if img_path:
-        final_msg = Message([
+    try:
+        await view_song.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -112,9 +112,9 @@ async def _(bot: Bot, event: Event, state: T_State):
             {
                 "type": "text",
                 "data": {"text": msg}
-            }])
-    else:
-        final_msg = Message([
+            }]))
+    except CQHTTPAdapterException:
+        await view_song.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -122,18 +122,14 @@ async def _(bot: Bot, event: Event, state: T_State):
             {
                 "type": "text",
                 "data": {"text": msg}
-            }])
-    try:
-        await view_song.send(final_msg)
-    except CQHTTPAdapterException:
-        await view_song.send("ごめん〜风控了ね！\n" + msg)
+            }]))
 
 
 @view_chart.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg, img_path = select_chart(str(event.get_message()))
-    if img_path:
-        final_msg = Message([
+    try:
+        await view_chart.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -145,9 +141,9 @@ async def _(bot: Bot, event: Event, state: T_State):
             {
                 "type": "text",
                 "data": {"text": msg}
-            }])
-    else:
-        final_msg = Message([
+            }]))
+    except CQHTTPAdapterException:
+        await view_chart.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -155,11 +151,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             {
                 "type": "text",
                 "data": {"text": msg}
-            }])
-    try:
-        await view_chart.send(final_msg)
-    except CQHTTPAdapterException:
-        await view_chart.send("ごめん〜风控了ね！\n" + msg)
+            }]))
 
 
 @mai_what.handle()
@@ -168,6 +160,10 @@ async def _(bot: Bot, event: Event, state: T_State):
     if img_path:
         final_msg = Message([
             {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
                 "type": "image",
                 "data": {"file": f"{img_path}"}
             },
@@ -177,6 +173,10 @@ async def _(bot: Bot, event: Event, state: T_State):
             }])
     else:
         final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "text",
                 "data": {"text": msg}
@@ -247,8 +247,12 @@ async def _(bot: Bot, event: Event, state: T_State):
 @level_random_song.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg, img_path = random_by_level(str(event.get_message()))
-    if img_path:
-        final_msg = Message([
+    try:
+        await level_random_song.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "image",
                 "data": {"file": f"{img_path}"}
@@ -256,24 +260,24 @@ async def _(bot: Bot, event: Event, state: T_State):
             {
                 "type": "text",
                 "data": {"text": msg}
-            }])
-    else:
-        final_msg = Message([
+            }]))
+    except CQHTTPAdapterException:
+        await level_random_song.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "text",
                 "data": {"text": msg}
-            }])
-    try:
-        await level_random_song.finish(final_msg)
-    except CQHTTPAdapterException:
-        await level_random_song.finish("ごめん〜风控了ね！\n" + msg)
+            }]))
 
 
 @inner_level_random_song.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg, img_path = random_by_inner_level(str(event.get_message()))
-    if img_path:
-        final_msg = Message([
+    try:
+        await inner_level_random_song.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -285,9 +289,9 @@ async def _(bot: Bot, event: Event, state: T_State):
             {
                 "type": "text",
                 "data": {"text": msg}
-            }])
-    else:
-        final_msg = Message([
+            }]))
+    except CQHTTPAdapterException:
+        await inner_level_random_song.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -295,11 +299,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             {
                 "type": "text",
                 "data": {"text": msg}
-            }])
-    try:
-        await inner_level_random_song.finish(final_msg)
-    except CQHTTPAdapterException:
-        await inner_level_random_song.finish("ごめん〜风控了ね！\n" + msg)
+            }]))
 
 
 @best_list_pic.handle()
@@ -345,8 +345,12 @@ async def _(bot: Bot, event: Event, state: T_State):
 async def _(bot: Bot, event: Event, state: T_State):
     msg, img_path = random_chart(str(event.get_message()))
     if msg:
-        if img_path:
-            final_msg = Message([
+        try:
+            await try_random_chart.send(Message([
+                {
+                    "type": "reply",
+                    "data": {"id": event.message_id}
+                },
                 {
                     "type": "image",
                     "data": {"file": f"{img_path}"}
@@ -354,19 +358,27 @@ async def _(bot: Bot, event: Event, state: T_State):
                 {
                     "type": "text",
                     "data": {"text": msg}
-                }])
-        else:
-            final_msg = Message([
+                }]))
+        except CQHTTPAdapterException:
+            await try_random_chart.send(Message([
+                {
+                    "type": "reply",
+                    "data": {"id": event.message_id}
+                },
                 {
                     "type": "text",
                     "data": {"text": msg}
-                }])
-        try:
-            await try_random_chart.finish(final_msg)
-        except CQHTTPAdapterException:
-            await try_random_chart.finish("ごめん〜风控了ね！\n" + msg)
+                }]))
     else:
-        await try_random_chart.finish()
+        await try_random_chart.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": "有这位谱师嘛？"}
+            }]))
 
 
 @add_alias.handle()

@@ -368,6 +368,7 @@ class BestList():
             if len_x > 271:
                 nickname = nickname[:int(271 / len_x * len(nickname))]
             plate_draw.text((193, 61), nickname, "black", name_font)
+            """
             if "qq" in self.payload:
                 try:
                     data = requests.get(f'http://q1.qlogo.cn/g?b=qq&nk={self.payload["qq"]}&s=640')
@@ -380,6 +381,8 @@ class BestList():
                     plate_img.paste(head_img, (11, 10), mask=head_img_mask)
                 finally:
                     pass
+            """
+
 
         plate_base = "000001.png"
         plate_img = Image.open(f"./material/plates/customized/{plate_base}")
@@ -446,7 +449,7 @@ def set_name_plate(user_in: str, user_id: int) -> str:
     [plate_num] = match(regex, user_in).groups()
     plate_num = int(plate_num)
     if f"{plate_num:06d}.png" in os.listdir("./material/plates/customized"):
-        conn = connect(host="39.106.184.73", user="root", password="Root-User", db="Player", port=3306)
+        conn = connect(host="127.0.0.1", user="root", password="Root-User", db="Player", port=3306)
         cursor = conn.cursor()
         cursor.execute(f"DELETE FROM PlateSetting WHERE QQId={user_id}")
         cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")
@@ -454,7 +457,7 @@ def set_name_plate(user_in: str, user_id: int) -> str:
         return "できました！"
     elif f"{plate_num:06d}.png" in os.listdir("./material/plates/special"):
         if user_id in [993433577, 1826356872, 1873618331]:
-            conn = connect(host="39.106.184.73", user="root", password="Root-User", db="Player", port=3306)
+            conn = connect(host="127.0.0.1", user="root", password="Root-User", db="Player", port=3306)
             cursor = conn.cursor()
             cursor.execute(f"DELETE FROM PlateSetting WHERE QQId={user_id}")
             cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")

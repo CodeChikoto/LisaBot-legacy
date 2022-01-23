@@ -112,8 +112,8 @@ def random_by_level(user_in: str):
     cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE Level='{level}' "
                             f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
-    rand_int = random.randint(0, amount - 1)
     if amount:
+        rand_int = random.randint(0, amount - 1)
         [id] = cursor.fetchall()[rand_int]
         conn.close()
         return select_song(f"id {id}")
@@ -129,10 +129,10 @@ def search_by_notes_amount(user_in: str):
     amount = int(amount)
     conn = database_pool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"SELECT SI.Id,CI.Difficulty,SI.Title FROM SongInfo SI JOIN ChartInfo CI "
-                   f"ON SI.Id=CI.Id AND CI.Tap+CI.Hold+CI.Slide+CI.Touch+CI.Break={amount} UNION "
-                   f"SELECT SI.Id,CI.Difficulty,SI.Title FROM SongInfo SI JOIN ChartInfo CI "
-                   f"ON SI.Id=CI.Id AND CI.Tap+CI.Hold+CI.Slide+CI.Break={amount}")
+    cursor.execute(f"SELECT SI.Id,CI.Difficulty,SI.Title FROM SongInfo SI JOIN ChartInfo CI ON SI.Id=CI.Id "
+                   f"AND CI.Tap+CI.Hold+CI.Slide+CI.Touch+CI.Break={amount} AND CI.Touch IS NOT NULL "
+                   f"UNION SELECT SI.Id,CI.Difficulty,SI.Title FROM SongInfo SI JOIN ChartInfo CI "
+                   f"ON SI.Id=CI.Id AND CI.Tap+CI.Hold+CI.Slide+CI.Break={amount} AND CI.Touch IS NULL")
     res = cursor.fetchall()
     conn.close()
     return _format_song_list(res, page)
@@ -159,8 +159,8 @@ def random_by_inner_level(user_in: str):
     cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} "
                             f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
-    rand_int = random.randint(0, amount - 1)
     if amount:
+        rand_int = random.randint(0, amount - 1)
         [id] = cursor.fetchall()[rand_int]
         conn.close()
         return select_song(f"id {id}")
@@ -189,6 +189,8 @@ def select_song(user_in: str):
         return "这是什么大版本呀？", ""
     cursor.execute(f"SELECT * FROM SongInfo WHERE Id={id}")
     res = cursor.fetchone()
+    if not res:
+        return "好像没有这首歌", ""
     msg = f"""
 ID: {res[0]}
 标题：{res[1]}
