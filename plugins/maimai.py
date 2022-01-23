@@ -7,37 +7,43 @@ from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 from tools.shared_var import *
 
-inner_level_search = on_regex("定数查歌 " + difficulty_regex + "?([0-9]+\.[0-9])")
-level_search = on_regex("等级查歌 " + difficulty_regex + "?([0-9]+\+?)")
-name_search = on_command('name_search ', aliases={"查歌 ", "search "}, block=True)
-artist_search = on_command("artist_search ", aliases={"艺术家查歌 ", "曲师查歌 "}, block=True)
-view_song = on_regex("id ([0-9]+)\s?(.+)?", block=True)
-view_chart = on_regex("(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?", block=True)
+inner_level_search = on_regex("^定数查歌 " + difficulty_regex + "?([0-9]+\.[0-9])\s?([0-9]+)?")
+level_search = on_regex("^等级查歌 " + difficulty_regex + "?([0-9]+\+?)\s?([0-9]+)?")
+name_search = on_regex("^(search|查歌|搜索) (.+)$", block=True)
+artist_search = on_regex("^(曲师|艺术家|歌手)查歌 (.+)", block=True)
+view_song = on_regex("^id ([0-9]+)\s?(.+)?", block=True)
+view_chart = on_regex("^(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?", block=True)
 mai_what = on_regex(r".*mai\s?什么", block=True)
-which_is = on_regex(r"(.+)是什么歌", block=True)
-achie_range = on_regex(f"达成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+which_is = on_regex("^(.+)是什么歌\s?([0-9]+)?$", block=True)
+achie_range = on_regex(f"^达成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                        r"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                        r"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", block=True)
-break_dist = on_regex(f"绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+break_dist = on_regex(f"^绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                       f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                       f"([0-9]+),([0-9]+),([0-9]+),([0-9]+) ([0-9]+.[0-9]+)", block=True)
-inner_level_random_song = on_regex("随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])")
-level_random_song = on_regex("随歌 " + difficulty_regex + "\s?([0-9]+\+?)$")
-try_random_chart = on_regex(r"我要大战(.+)", block=True)
+inner_level_random_song = on_regex("^随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])")
+level_random_song = on_regex("^随歌 " + difficulty_regex + "\s?([0-9]+\+?)$")
+try_random_chart = on_regex(r"^我要大战(.+)", block=True)
 best_list_pic = on_regex(r"^(b|B)(4|5)0\s?(.+)?")
-add_alias = on_regex("增加别名 ([0-9]+) (.+)", block=True)
-achie_list = on_regex(r"(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
-level_process = on_regex("进度 ([0-9]+\+?) " + combo_ranks_regex + "\s?" + achie_ranks_regex + "\s?(.+)?")
+add_alias = on_regex("^增加别名 ([0-9]+) (.+)", block=True)
+achie_list = on_regex(r"^(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
+level_process = on_regex("^进度 ([0-9]+\+?) " + combo_ranks_regex + "?\s?" + achie_ranks_regex + "?\s?(.+)?")
 plate_process = on_regex(f"^({'|'.join(version_alias.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?")
 plate_list = on_command("plate_list", aliases={"牌子条件", "牌子列表"})
 view_name_plate = on_command("view_plates_list", aliases={"查看名牌板", "查看姓名框"})
 custom_name_plate = on_regex("^设置姓名框 ([0-9]+)")
+notes_search = on_regex("^物量查歌 ([0-9]+)\s?([0-9]+)?")
+bpm_search = on_regex("^(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?")
 
 
 @inner_level_search.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     msg = search_by_inner_level(str(event.get_message()))
     final_msg = Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
         {
             "type": "text",
             "data": {"text": msg}
@@ -50,6 +56,10 @@ async def _(bot: Bot, event: Event, state: T_State):
     msg = search_by_level(str(event.get_message()))
     final_msg = Message([
         {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
             "type": "text",
             "data": {"text": msg}
         }])
@@ -61,6 +71,10 @@ async def _(bot: Bot, event: Event, state: T_State):
     msg = search_by_name(str(event.get_message()))
     final_msg = Message([
         {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
             "type": "text",
             "data": {"text": msg}
         }])
@@ -71,6 +85,10 @@ async def _(bot: Bot, event: Event, state: T_State):
 async def _(bot: Bot, event: Event, state: T_State):
     msg = search_by_artist(str(event.get_message()))
     final_msg = Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
         {
             "type": "text",
             "data": {"text": msg}
@@ -84,6 +102,10 @@ async def _(bot: Bot, event: Event, state: T_State):
     if img_path:
         final_msg = Message([
             {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
                 "type": "image",
                 "data": {"file": f"{img_path}"}
             },
@@ -93,6 +115,10 @@ async def _(bot: Bot, event: Event, state: T_State):
             }])
     else:
         final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "text",
                 "data": {"text": msg}
@@ -109,6 +135,10 @@ async def _(bot: Bot, event: Event, state: T_State):
     if img_path:
         final_msg = Message([
             {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
                 "type": "image",
                 "data": {"file": f"{img_path}"}
             },
@@ -118,6 +148,10 @@ async def _(bot: Bot, event: Event, state: T_State):
             }])
     else:
         final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "text",
                 "data": {"text": msg}
@@ -154,6 +188,10 @@ async def _(bot: Bot, event: Event, state: T_State):
 async def _(bot: Bot, event: Event, state: T_State):
     msg = search_by_name(str(event.get_message()))
     final_msg = Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
         {
             "type": "text",
             "data": {"text": msg}
@@ -237,6 +275,10 @@ async def _(bot: Bot, event: Event, state: T_State):
     if img_path:
         final_msg = Message([
             {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
                 "type": "image",
                 "data": {"file": f"{img_path}"}
             },
@@ -246,6 +288,10 @@ async def _(bot: Bot, event: Event, state: T_State):
             }])
     else:
         final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "text",
                 "data": {"text": msg}
@@ -442,3 +488,33 @@ async def _(bot: Bot, event: Event, state: T_State):
         }
     ])
     await custom_name_plate.finish(final_msg)
+
+
+@notes_search.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    msg = search_by_notes_amount(str(event.get_message()))
+    final_msg = Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": msg}
+        }])
+    await notes_search.finish(final_msg)
+
+
+@bpm_search.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    msg = search_by_bpm(str(event.get_message()))
+    final_msg = Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": msg}
+        }])
+    await bpm_search.finish(final_msg)

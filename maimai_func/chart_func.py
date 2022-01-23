@@ -152,8 +152,8 @@ def select_chart(user_in: str):
         return "这是什么大版本呀？", ""
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
     cursor.execute(f"SELECT SI.Title,SI.Cover,SI.ImageExt,CI.*,CD.Level,CD.InnerLevel,CD.Version FROM ChartInfo CI "
-                   f"JOIN ChartDifficulty CD ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
-                   f"JOIN SongInfo SI ON CI.Id=SI.Id "
+                   f"LEFT JOIN ChartDifficulty CD ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
+                   f"RIGHT JOIN SongInfo SI ON CI.Id=SI.Id "
                    f"WHERE CI.Id={id} AND CI.Difficulty='{difficulty}' AND CD.Version LIKE '%{version}%'")
     res, img_path = cursor.fetchone(), ""
     conn.close()
@@ -252,7 +252,7 @@ async def get_achie_list(user_in: str, user_id: int):
 
 
 async def get_level_process(user_in: str, user_id: int):
-    regex = "进度 ([0-9]+\+?)\s?" + combo_ranks_regex + "\s?" + achie_ranks_regex + "\s?(.+)?"
+    regex = "进度 ([0-9]+\+?)\s?" + combo_ranks_regex + "?\s?" + achie_ranks_regex + "?\s?(.+)?"
     [level, combo, rank, username] = re.match(regex, user_in.upper()).groups()
     if not rank and not combo:
         return "何が知ったい？"

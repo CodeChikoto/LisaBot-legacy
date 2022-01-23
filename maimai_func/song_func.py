@@ -1,79 +1,97 @@
 import re
 import os
 import random
-from tools.shared_var import *
+from math import ceil
 
+from tools.shared_var import *
 
 random.seed(2508)
 
 
+def _format_song_list(res: list, page: int) -> str:
+    def _get_difficulty_short(difficulty: str):
+        if difficulty == "Basic":
+            return "BSC"
+        elif difficulty == "Advanced":
+            return "ADV"
+        elif difficulty == "Expert":
+            return "EXP"
+        elif difficulty == "Master":
+            return "MST"
+        elif difficulty == "Re:MASTER":
+            return "REM"
+
+    if not res:
+        return "没有找到呢"
+    total_page = int(ceil(len(res) / 20))
+    if page > total_page:
+        return "你翻太多页啦"
+    res = res[(page - 1) * 20:min(page * 20, len(res))]
+    msg = f"搜索结果第{page}/{total_page}页："
+    if len(res[0]) == 2:
+        for song in res:
+            msg += f"\n{song[0]}  {song[1]}"
+    else:
+        for song in res:
+            msg += f"\n{song[0]}  {_get_difficulty_short(song[1])}  {song[2]}"
+    return msg
+
+
 def search_by_inner_level(user_in: str):
-    regex = "定数查歌 " + difficulty_regex + "?([0-9]+\.[0-9])"
-    difficulty, inner_level = re.match(regex, user_in.lower()).groups()
-    if difficulty and difficulty not in difficulty_alias:
+    regex = "定数查歌 " + difficulty_regex + "?([0-9]+\.[0-9])\s?([0-9]+)?"
+    difficulty, inner_level, page = re.match(regex, user_in.lower()).groups()
+    page = 1 if not page else int(page)
+    if difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
     conn = database_pool.connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                   f"(SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} AND "
-                   f"Difficulty LIKE '{difficulty}')")
+    cursor.execute(f"SELECT SI.Id,CD.Difficulty,SI.Title FROM SongInfo SI JOIN ChartDifficulty CD "
+                   f"ON SI.Id=CD.Id WHERE CD.InnerLevel LIKE {inner_level} AND CD.Difficulty LIKE '{difficulty}' "
+                   f"AND CD.Version='舞萌DX 2021'")
     res = cursor.fetchall()
     conn.close()
-    if len(res) > 30:
-        msg = "结果过多，仅显示30条："
-        res = random.sample(res, 30)
-    else:
-        msg = "搜索结果："
-    for song in res:
-        msg += f"\n{song[0]}  {song[1]}"
-    return msg
+    return _format_song_list(res, page)
 
 
-def search_by_artist(keyword: str):
+def search_by_artist(user_in: str):
+    regex = "(曲师|艺术家|歌手)查歌 (.+)"
+    _, keyword = re.match(regex, user_in).groups()
     keyword = keyword.strip().replace("'", "\\'")
     conn = database_pool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE Artist LIKE '%{keyword}%'")
     res = cursor.fetchall()
     conn.close()
-    if len(res) > 30:
-        msg = "结果过多，仅显示30条："
-        res = random.sample(res, 30)
-    else:
-        msg = "搜索结果："
-    for song in res:
-        msg += f"\n{song[0]}  {song[1]}"
-    return msg
+    return _format_song_list(res, 1)
 
 
 def search_by_level(user_in: str):
-    regex = "等级查歌 " + difficulty_regex + "?([0-9]+\+?)"
-    difficulty, level = re.match(regex, user_in.lower()).groups()
-    if difficulty and difficulty not in difficulty_alias:
+    regex = "等级查歌 " + difficulty_regex + "?([0-9]+\+?)\s?([0-9]+)?"
+    difficulty, level, page = re.match(regex, user_in.lower()).groups()
+    page = 1 if not page else int(page)
+    if difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
     conn = database_pool.connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT Id,Title FROM SongInfo WHERE Id IN "
-                   f"(SELECT Id FROM ChartDifficulty WHERE Level='{level}' AND "
-                   f"Difficulty LIKE '{difficulty}')")
+    cursor.execute(f"SELECT SI.Id,CD.Difficulty,SI.Title FROM SongInfo SI JOIN ChartDifficulty CD "
+                   f"ON SI.Id=CD.Id WHERE CD.Level='{level}' AND CD.Difficulty LIKE '{difficulty}' "
+                   f"AND CD.Version='舞萌DX 2021'")
     res = cursor.fetchall()
     conn.close()
-    if len(res) > 30:
-        msg = "结果过多，仅显示30条："
-        res = random.sample(res, 30)
+    return _format_song_list(res, page)
+
+
+def search_by_name(user_in: str):
+    if "是什么歌" in user_in:
+        regex = "(.+)是什么歌\s?([0-9]+)?$"
+        keyword, page = re.match(regex, user_in).groups()
     else:
-        msg = "搜索结果："
-    for song in res:
-        msg += f"\n{song[0]}  {song[1]}"
-    return msg
-
-
-def search_by_name(keyword: str):
-    if "是什么歌" in keyword:
-        regex = "(.+)是什么歌"
-        [keyword] = re.match(regex, keyword).groups()
+        regex = "(search|查歌|搜索) (.+)"
+        _, keyword = re.match(regex, user_in).groups()
+        page = 1
+    page = 1 if not page else int(page)
     keyword = keyword.strip().replace("'", "\\'")
     conn = database_pool.connection()
     cursor = conn.cursor()
@@ -81,14 +99,7 @@ def search_by_name(keyword: str):
                    f"OR Id IN (SELECT Id FROM SongAlias WHERE Alias='{keyword}')")
     res = cursor.fetchall()
     conn.close()
-    if len(res) > 30:
-        msg = "结果过多，仅显示30条："
-        res = random.sample(res, 30)
-    else:
-        msg = "搜索结果："
-    for song in res:
-        msg += f"\n{song[0]}  {song[1]}"
-    return msg
+    return _format_song_list(res, page)
 
 
 def random_by_level(user_in: str):
@@ -100,7 +111,7 @@ def random_by_level(user_in: str):
     conn = database_pool.connection()
     cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE Level='{level}' "
-                            f"AND Difficulty LIKE '{difficulty}'")
+                            f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
     rand_int = random.randint(0, amount - 1)
     if amount:
         [id] = cursor.fetchall()[rand_int]
@@ -111,6 +122,33 @@ def random_by_level(user_in: str):
         return "随机条件不对哦～", None
 
 
+def search_by_notes_amount(user_in: str):
+    regex = "^物量查歌 ([0-9]+)\s?([0-9]+)?"
+    amount, page = re.match(regex, user_in).groups()
+    page = 1 if not page else int(page)
+    amount = int(amount)
+    conn = database_pool.connection()
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT SI.Id,CI.Difficulty,SI.Title FROM SongInfo SI JOIN ChartInfo CI "
+                   f"ON SI.Id=CI.Id AND CI.Tap+CI.Hold+CI.Slide+CI.Touch+CI.Break={amount} UNION "
+                   f"SELECT SI.Id,CI.Difficulty,SI.Title FROM SongInfo SI JOIN ChartInfo CI "
+                   f"ON SI.Id=CI.Id AND CI.Tap+CI.Hold+CI.Slide+CI.Break={amount}")
+    res = cursor.fetchall()
+    conn.close()
+    return _format_song_list(res, page)
+
+
+def search_by_bpm(user_in: str):
+    regex = "(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?"
+    _, bpm, page = re.match(regex, user_in.upper()).groups()
+    page = 1 if not page else int(page)
+    conn = database_pool.connection()
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE BPM={bpm}")
+    res = cursor.fetchall()
+    conn.close()
+    return _format_song_list(res, page)
+
 
 def random_by_inner_level(user_in: str):
     [difficulty, inner_level] = re.match("随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])", user_in.lower()).groups()
@@ -120,7 +158,7 @@ def random_by_inner_level(user_in: str):
     conn = database_pool.connection()
     cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} "
-                            f"AND Difficulty LIKE '{difficulty}'")
+                            f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
     rand_int = random.randint(0, amount - 1)
     if amount:
         [id] = cursor.fetchall()[rand_int]

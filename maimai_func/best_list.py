@@ -101,7 +101,7 @@ class BestList():
 
     def draw_list(self):
         difficulty_file = {"Basic": "BSC", "Advanced": "ADV", "Expert": "EXP", "Master": "MST",
-                            "Re:MASTER": "MST_Re"}
+                           "Re:MASTER": "MST_Re"}
         ranks_alias = {"fcp": "FCp", "fc": "FC", "ap": "AP", "app": "APp",
                        "fs": "FS", "fsp": "FSp", "fsd": "FSD", "fsdp": "FSDp"}
         achi_rank_file = {"sssp": "SSSp", "sss": "SSS", "ssp": "SSp", "ss": "SS", "sp": "Sp", "s": "S",
@@ -271,7 +271,7 @@ class BestList():
         _thread.start_new_thread(_draw_new_list, (lock2,))
         while lock1.locked() or lock2.locked():
             pass
-    
+
     def draw_name_plate(self, lock):
 
         def _draw_dxrating():
@@ -356,7 +356,7 @@ class BestList():
                 if self.mode == "B40" else "B50 Simulation"
             len_x = font_note.getsize(rating_note)[0]
             plate_draw.text((170 + int((353 - len_x) / 2), 125), rating_note, "white", font=font_note,
-                              stroke_width=2, stroke_fill="black")
+                            stroke_width=2, stroke_fill="black")
 
         def _draw_name():
             white_frame_img = Image.open("./material/UI_WhiteFrame.png")
@@ -399,7 +399,10 @@ class BestList():
             ans = cursor.fetchone()
             plate_base = f"{ans[0]:06d}.png" if ans else plate_base
             conn.close()
-            plate_img = Image.open(f"./material/plates/customized/{plate_base}") if ans else plate_img
+            try:
+                plate_img = Image.open(f"./material/plates/customized/{plate_base}") if ans else plate_img
+            except FileNotFoundError:
+                plate_img = Image.open(f"./material/plates/special/{plate_base}") if ans else plate_img
         plate_img = plate_img.resize((1037, 167))
         plate_draw = ImageDraw.Draw(plate_img)
         _draw_name()
@@ -449,6 +452,13 @@ def set_name_plate(user_in: str, user_id: int) -> str:
         cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")
         conn.commit()
         return "できました！"
+    elif f"{plate_num:06d}.png" in os.listdir("./material/plates/special"):
+        if user_id in [993433577, 1826356872, 1873618331]:
+            conn = connect(host="39.106.184.73", user="root", password="Root-User", db="Player", port=3306)
+            cursor = conn.cursor()
+            cursor.execute(f"DELETE FROM PlateSetting WHERE QQId={user_id}")
+            cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")
+            conn.commit()
+            return "できました！"
     else:
         return "好像没有这张姓名框？"
-

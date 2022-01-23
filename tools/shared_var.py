@@ -84,14 +84,14 @@ plate_num_list = {
     "舞舞": 3}
 achie_ranks = {'SSS+': 100.5, 'SSS': 100, 'SS+': 99.5, 'SS': 99, 'S+': 98, 'S': 97, 'AAA': 94,
                'AA': 90, 'A': 80, 'BBB': 75, 'BB': 70, 'B': 60, 'C': 50, 'D': 0}
-achie_ranks_regex = f"({'|'.join(achie_ranks.keys())})?"
+achie_ranks_regex = f"({'|'.join(achie_ranks.keys())})"
 achie_ranks_regex = achie_ranks_regex.replace('+', '\+')
 combo_ranks = {"AP+": 0, "app": 0, "ap": 1, "AP": 1, "FC+": 2, "fcp": 2, "fc": 3, "FC": 3, "": 4}
-combo_ranks_regex = f"({'|'.join(combo_ranks.keys())})?"
+combo_ranks_regex = f"({'|'.join(combo_ranks.keys())})"
 combo_ranks_regex = combo_ranks_regex.replace('+', '\+')
 combo_upper = {"fc": "FC", "fcp": "FC+", "ap": "AP", "app": "AP+", "": ""}
 sync_ranks = {"FSD+": 0, "FSD": 1, "FS+": 2, "FS": 3, "": 4}
-sync_ranks_regex = f"({'|'.join(sync_ranks.keys())})?"
+sync_ranks_regex = f"({'|'.join(sync_ranks.keys())})"
 sync_ranks_regex = sync_ranks_regex.replace('+', '\+')
 sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
 new_id_list = [10021, 10181, 10690, 11032, 11089, 11090, 11091, 11092, 11097, 11098, 11099, 11100, 11101,
