@@ -151,7 +151,8 @@ def select_chart(user_in: str):
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
-    cursor.execute(f"SELECT SI.Title,SI.Cover,SI.ImageExt,CI.*,CD.Level,CD.InnerLevel,CD.Version FROM ChartInfo CI "
+    cursor.execute(f"SELECT SI.Title,SI.Cover,SI.ImageExt,CI.Id,CI.Difficulty,CI.Charter,CI.Tap,CI.Hold,"
+                   f"CI.Slide,CI.Touch,CI.Break,CD.Level,CD.InnerLevel,CD.Version FROM ChartInfo CI "
                    f"LEFT JOIN ChartDifficulty CD ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
                    f"RIGHT JOIN SongInfo SI ON CI.Id=SI.Id "
                    f"WHERE CI.Id={id} AND CI.Difficulty='{difficulty}' AND CD.Version LIKE '%{version}%'")

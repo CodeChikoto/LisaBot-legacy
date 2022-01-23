@@ -187,7 +187,7 @@ def select_song(user_in: str):
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
-    cursor.execute(f"SELECT * FROM SongInfo WHERE Id={id}")
+    cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,Cover,ImageExt FROM SongInfo WHERE Id={id}")
     res = cursor.fetchone()
     if not res:
         return "好像没有这首歌", ""

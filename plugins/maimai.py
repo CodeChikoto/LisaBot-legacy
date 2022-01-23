@@ -106,6 +106,10 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"id": event.message_id}
             },
             {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
                 "type": "image",
                 "data": {"file": f"{img_path}"}
             },
@@ -115,6 +119,10 @@ async def _(bot: Bot, event: Event, state: T_State):
             }]))
     except CQHTTPAdapterException:
         await view_song.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -135,6 +143,10 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"id": event.message_id}
             },
             {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
                 "type": "image",
                 "data": {"file": f"{img_path}"}
             },
@@ -144,6 +156,10 @@ async def _(bot: Bot, event: Event, state: T_State):
             }]))
     except CQHTTPAdapterException:
         await view_chart.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -283,6 +299,10 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"id": event.message_id}
             },
             {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
                 "type": "image",
                 "data": {"file": f"{img_path}"}
             },
@@ -292,6 +312,10 @@ async def _(bot: Bot, event: Event, state: T_State):
             }]))
     except CQHTTPAdapterException:
         await inner_level_random_song.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
