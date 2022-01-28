@@ -368,7 +368,6 @@ class BestList():
             if len_x > 271:
                 nickname = nickname[:int(271 / len_x * len(nickname))]
             plate_draw.text((193, 61), nickname, "black", name_font)
-            """
             if "qq" in self.payload:
                 try:
                     data = requests.get(f'http://q1.qlogo.cn/g?b=qq&nk={self.payload["qq"]}&s=640')
@@ -381,7 +380,6 @@ class BestList():
                     plate_img.paste(head_img, (11, 10), mask=head_img_mask)
                 finally:
                     pass
-            """
 
 
         plate_base = "000001.png"
