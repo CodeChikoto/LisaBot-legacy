@@ -38,7 +38,7 @@ def cal_achie_range(user_in: str):
     groups = re.match(regex, user_in).groups()
     difficulty = difficulty_alias[groups[0]] if groups[0] in difficulty_alias else groups[0]
     id = groups[1]
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT Tap,Hold,Slide,Touch,Break FROM ChartInfo "
                    f"WHERE Difficulty='{difficulty}' AND Id={id}")
@@ -88,7 +88,7 @@ def cal_break_dist(user_in: str):
     difficulty = difficulty_alias[groups[0]] if groups[0] in difficulty_alias else groups[0]
     id = groups[1]
     ans = []
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT Tap,Hold,Slide,Touch,Break FROM ChartInfo "
                    f"WHERE Difficulty='{difficulty}' AND Id={id}")
@@ -145,14 +145,14 @@ def select_chart(user_in: str):
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！", ""
     version = "舞萌DX 2021" if not version else version
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
-    cursor.execute(f"SELECT SI.Title,SI.Cover,SI.ImageExt,CI.Id,CI.Difficulty,CI.Charter,CI.Tap,CI.Hold,"
-                   f"CI.Slide,CI.Touch,CI.Break,CD.Level,CD.InnerLevel,CD.Version FROM ChartInfo CI "
+    cursor.execute(f"SELECT SI.Title,SI.Cover,SI.ImageExt,SI.ChartType,SI.BPM,CI.Id,CI.Difficulty,CI.Charter,"
+                   f"CI.Tap,CI.Hold,CI.Slide,CI.Touch,CI.Break,CD.Level,CD.InnerLevel,CD.Version FROM ChartInfo CI "
                    f"LEFT JOIN ChartDifficulty CD ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
                    f"RIGHT JOIN SongInfo SI ON CI.Id=SI.Id "
                    f"WHERE CI.Id={id} AND CI.Difficulty='{difficulty}' AND CD.Version LIKE '%{version}%'")
@@ -163,23 +163,25 @@ def select_chart(user_in: str):
     if res:
         msg = f"""
 标题：{res[0]}
-ID: {res[3]}
-难度：{res[4]}
-等级：{res[11]}
-定数：{res[12]}
-Tap: {res[6]}
-Hold: {res[7]}
-Slide: {res[8]}
+ID: {res[5]}
+谱面类型：{res[3]}
+BPM: {res[4]}
+难度：{res[6]}
+等级：{res[13]}
+定数：{res[14]}
+Tap: {res[8]}
+Hold: {res[9]}
+Slide: {res[10]}
 """
-        if res[9]:
-            msg += f"""Touch: {res[9]}
+        if res[11]:
+            msg += f"""Touch: {res[11]}
 """
-        msg += f"""Break: {res[10]}
-谱师：{res[5]}
-定级版本：{res[13]}"""
-        with open("./cache/chart_cover" + res[2], "wb") as cover:
+        msg += f"""Break: {res[12]}
+谱师：{res[7]}
+定级版本：{res[15]}"""
+        with open(f"./cache/{res[5]}{res[2]}", "wb") as cover:
             cover.write(res[1])
-        img_path = f"file://{os.getcwd()}/cache/chart_cover" + res[2]
+        img_path = f"file://{os.getcwd()}/cache/{res[5]}{res[2]}"
     else:
         msg = "谱面不存在哟！检查下 ID 或者难度～"
     return msg, img_path
@@ -189,7 +191,7 @@ def random_chart(user_in: str):
     regex = r"我要大战(.+)"
     [keyword] = re.match(regex, user_in).groups()
     keywords = keyword.replace("'", "\\'")
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT CI.Id,CD.Difficulty FROM ChartInfo CI JOIN ChartDifficulty CD "
                    f"ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
@@ -236,7 +238,7 @@ async def get_achie_list(user_in: str, user_id: int):
     ans.sort(key=lambda x: x["achievements"], reverse=True)
     ans = ans[25 * (page - 1):min(25 * page, len(ans))]
     msg = f"你的等级{level}达成率列表第{page}/{total_pages}页如下："
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     for chart in ans:
         cursor.execute(f"SELECT InnerLevel FROM ChartDifficulty WHERE Id='{chart['id']}' AND "
@@ -257,7 +259,7 @@ async def get_level_process(user_in: str, user_id: int):
     [level, combo, rank, username] = re.match(regex, user_in.upper()).groups()
     if not rank and not combo:
         return "何が知ったい？"
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT COUNT(*) FROM ChartDifficulty WHERE Level='{level}' AND Version='舞萌DX 2021'")
     total, count = cursor.fetchone()[0], 0
@@ -362,7 +364,7 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
         return data
     charts = data["verlist"]
 
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     # 真 = maimai + maimai PLUS
     if ver == "真":

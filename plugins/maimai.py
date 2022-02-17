@@ -33,7 +33,8 @@ plate_list = on_command("plate_list", aliases={"牌子条件", "牌子列表"})
 view_name_plate = on_command("view_plates_list", aliases={"查看名牌板", "查看姓名框"})
 custom_name_plate = on_regex("^设置姓名框 ([0-9]+)")
 notes_search = on_regex("^物量查歌 ([0-9]+)\s?([0-9]+)?")
-bpm_search = on_regex("^(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?")
+bpm_search = on_regex("^(?!)(BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?")
+rating_analyzation = on_regex("^(?!)(底分|Ra|)分析")
 
 
 @inner_level_search.handle()
@@ -101,10 +102,6 @@ async def _(bot: Bot, event: Event, state: T_State):
     msg, img_path = select_song(str(event.get_message()))
     try:
         await view_song.send(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -554,3 +551,8 @@ async def _(bot: Bot, event: Event, state: T_State):
             "data": {"text": msg}
         }])
     await bpm_search.finish(final_msg)
+
+
+@rating_analyzation.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    pass

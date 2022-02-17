@@ -44,7 +44,7 @@ def search_by_inner_level(user_in: str):
     if difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT SI.Id,CD.Difficulty,SI.Title FROM SongInfo SI JOIN ChartDifficulty CD "
                    f"ON SI.Id=CD.Id WHERE CD.InnerLevel LIKE {inner_level} AND CD.Difficulty LIKE '{difficulty}' "
@@ -58,7 +58,7 @@ def search_by_artist(user_in: str):
     regex = "(曲师|艺术家|歌手)查歌 (.+)"
     _, keyword = re.match(regex, user_in).groups()
     keyword = keyword.strip().replace("'", "\\'")
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE Artist LIKE '%{keyword}%'")
     res = cursor.fetchall()
@@ -73,7 +73,7 @@ def search_by_level(user_in: str):
     if difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT SI.Id,CD.Difficulty,SI.Title FROM SongInfo SI JOIN ChartDifficulty CD "
                    f"ON SI.Id=CD.Id WHERE CD.Level='{level}' AND CD.Difficulty LIKE '{difficulty}' "
@@ -93,7 +93,7 @@ def search_by_name(user_in: str):
         page = 1
     page = 1 if not page else int(page)
     keyword = keyword.strip().replace("'", "\\'")
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT DISTINCT Id,Title FROM SongInfo WHERE Title LIKE '%{keyword}%' "
                    f"OR Id IN (SELECT Id FROM SongAlias WHERE Alias='{keyword}')")
@@ -108,7 +108,7 @@ def random_by_level(user_in: str):
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE Level='{level}' "
                             f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
@@ -127,7 +127,7 @@ def search_by_notes_amount(user_in: str):
     amount, page = re.match(regex, user_in).groups()
     page = 1 if not page else int(page)
     amount = int(amount)
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT SI.Id,CI.Difficulty,SI.Title FROM SongInfo SI JOIN ChartInfo CI ON SI.Id=CI.Id "
                    f"AND CI.Tap+CI.Hold+CI.Slide+CI.Touch+CI.Break={amount} AND CI.Touch IS NOT NULL "
@@ -142,7 +142,7 @@ def search_by_bpm(user_in: str):
     regex = "(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?"
     _, bpm, page = re.match(regex, user_in.upper()).groups()
     page = 1 if not page else int(page)
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE BPM={bpm}")
     res = cursor.fetchall()
@@ -155,7 +155,7 @@ def random_by_inner_level(user_in: str):
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！", ""
     difficulty = difficulty_alias[difficulty] if difficulty and difficulty in difficulty_alias else '%'
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} "
                             f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
@@ -170,7 +170,7 @@ def random_by_inner_level(user_in: str):
 
 
 def random_any():
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     amount = cursor.execute(f"SELECT Id FROM SongInfo")
     rand_int = random.randint(0, amount - 1)
@@ -182,7 +182,7 @@ def random_any():
 def select_song(user_in: str):
     [id, version] = re.match("id ([0-9]+)\s?(.+)?", user_in).groups()
     version = "舞萌DX 2021" if not version else version
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
     if cursor.fetchone()[0] != 1:
@@ -200,14 +200,12 @@ BPM: {res[3]}
 分类：{res[5]}
 收录版本：{res[6]}
 等级："""
-    with open("./cache/song_cover" + res[8], "wb") as cover:
+    with open(f"./cache/{res[0]}{res[8]}", "wb") as cover:
         cover.write(res[7])
     cover.close()
-    img_path = f"file://{os.getcwd()}/cache/song_cover" + res[8] if res[7] else ""
-    cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty "
-                   f"WHERE Id={id} AND Version LIKE '%{version}%'"
-                   "ORDER BY FIELD(Difficulty,'Basic','Advanced',"
-                   "'Expert','Master','Re:MASTER')")
+    img_path = f"file://{os.getcwd()}/cache/{res[0]}{res[8]}" if res[7] else ""
+    cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty WHERE Id={id} AND Version LIKE '%{version}%'"
+                   "ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
     res = cursor.fetchall()
     level, inner_level = [data[0] for data in res], [str(data[1]) for data in res]
     msg += ",".join(level)
@@ -220,7 +218,7 @@ BPM: {res[3]}
 def add_alias_handle(user_in: str):
     regex = "增加别名 ([0-9]+) (.+)"
     [id, alias] = re.match(regex, user_in).groups()
-    conn = database_pool.connection()
+    conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"INSERT IGNORE SongAlias (Id,Alias) VALUES ({id},'{alias}')")
     conn.commit()

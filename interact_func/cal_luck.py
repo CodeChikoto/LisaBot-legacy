@@ -20,9 +20,9 @@ def cal_luck(user_id: str, nickname: str):
     random.seed(int(user_id) + int(date_time.strftime("%Y%m%d")))
     luckness = random.randint(24, 4000) % 100
     cur_hour = int(time.strftime("%H", time.localtime()))
-    if 6 <= cur_hour <= 11:
+    if 6 <= cur_hour <= 10:
         msg = f"おはよう！{nickname}"
-    elif 18 <= cur_hour <= 24:
+    elif 19 <= cur_hour <= 23:
         msg = f"こんばんは！{nickname}"
     else:
         msg = ""

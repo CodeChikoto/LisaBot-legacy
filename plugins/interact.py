@@ -1,14 +1,10 @@
-import random
-import time
 from nonebot import *
 from nonebot.adapters.cqhttp import *
-from nonebot.adapters.cqhttp.bot import *
 from nonebot.typing import *
 from interact_func.cal_luck import *
 from interact_func.emoji import *
-from interact_func.selector import *
-from plugins.called_interact import mute_list
-import re
+from interact_func.select import *
+from tools.shared_var import *
 
 
 async def _bot_poked(bot: Bot, event: Event, state: dict) -> bool:
@@ -25,8 +21,11 @@ async def _mute_poke(bot: Bot, event: Event, state: dict) -> bool:
 
 
 async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
-    value = event.message_type == "private" and event.user_id == 993433577
-    return value
+    global koto_last
+    if event.user_id == 993433577:
+        koto_last = time.strftime("%d.%H:%M:%S")
+        return True
+    return False
 
 
 random.seed(time.time())
@@ -35,32 +34,24 @@ msg_record = {}
 in_song_guess = False
 id, title, img_path, koto_last = None, None, None, None
 
+
 poke_back = on_notice(rule=_bot_poked, block=True)
-repeat = on_message()
-is_online = on_regex(r"(.+)在线(么|吗)")
+repeat = on_message(priority=2)
+is_online = on_regex(r"^(琴|琴琴|机修)在线(么|吗)(？|)", block=True)
 poke_mute = on_notice(rule=_mute_poke)
-today_luck = on_command("today_luck", aliases={"今日运势"})
-public_notice = on_command(rule=_from_koto, cmd="/public ", aliases={"/广播 ", "/公告 "})
+today_luck = on_command("today_luck", aliases={"今日运势"}, block=True)
+public_notice = on_command(rule=_from_koto, cmd="/public ", aliases={"/广播 ", "/公告 "}, block=True)
 
 
 @poke_back.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    rand = random.randint(1, 13)
+    rand = random.randint(1, 12)
     # hit
-    if rand == 1:
-        emoji_path = random_emoji("hit")
+    if 1 <= rand <= 3:
         await poke_back.finish(Message([
             {
                 "type": "image",
-                "data": {"file": f"{emoji_path}"}
-            }
-        ]))
-    elif rand == 2:
-        emoji_path = random_emoji("shocked")
-        await poke_back.finish(Message([
-            {
-                "type": "image",
-                "data": {"file": f"{emoji_path}"}
+                "data": {"file": f"{random_emoji('%')}"}
             }
         ]))
     # poke
@@ -102,45 +93,51 @@ async def _(bot: Bot, event: Event, state: T_State):
                     msg_record[group_id] = [hash(message), 1]
     except AttributeError:
         pass
-    if user_id == 993433577:
-        koto_last = time.time()
     await repeat.finish()
 
 
 @is_online.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     global koto_last
-    regex = r"(.+)在线(么|吗)"
-    groups = re.match(regex, str(event.get_message())).groups()
-    if groups[0] in ["琴琴", "琴"]:
-        if not koto_last:
-            await is_online.finish("重启后还没看到琴琴～")
+    if koto_last:
+        text = f"{koto_last}に最後のメッセージ"
+        now = time.strftime("%d.%H:%M:%S")
+        last, now = re.split("\.|:", koto_last), re.split("\.|:", now)
         # in 30 minutes
-        interval = time.time() - koto_last
-        if not int(interval / 600):
-            message = str(int(interval)) + "秒前に最後のメッセージ、いそうだ"
-        elif not int(interval / 7200):
-            # 30-60 minutes
-            message = str(int(interval)) + "秒前に最後のメッセージ、いなさそうだ"
+        if last[0] == now[0] and last[1] == now[1] and int(now[2]) - int(last[2]) <= 30:
+            text += "\n絶対にいますね！"
+        # 30 minutes ~ 1 hour
+        elif last[0] == now[0] and last[1] == now[1] and int(now[2]) - int(last[2]) <= 60:
+            text += "\nいそうです！"
+        # 1 hour ~ 3 hour
+        elif last[0] == now[0] and int(now[1]) - int(last[1]) <= 3:
+            text += "\nいなさそうです！"
         else:
-            message = "正体なく眠ています"
-        await is_online.finish(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
-                "type": "text",
-                "data": {"text": message}
-            }
-        ]))
+            text += "\n正体なく眠ています"
+    else:
+        text = "重启后还没见过琴琴"
+    await is_online.finish(Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "at",
+            "data": {"qq": "993433577"}
+        },
+        {
+            "type": "text",
+            "data": {"text": text}
+        }
+    ]))
 
 
 @poke_mute.handle()
 async def _(bot: Bot, event: Event, state: T_State):
+    mute_time = random.randint(600, 2591999)
     try:
         await bot.set_group_ban(group_id=event.group_id, user_id=event.target_id,
-                                duration=864000)
+                                duration=mute_time)
     except CQHTTPAdapterException:
         pass
     await poke_mute.finish()
@@ -167,3 +164,4 @@ async def _(bot: Bot, event: Event, state: T_State):
     groups_list = await bot.get_group_list()
     for group in groups_list:
         await bot.send_group_msg(group_id=group["group_id"], message=msg)
+        time.sleep(2)

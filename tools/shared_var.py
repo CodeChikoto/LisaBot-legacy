@@ -76,12 +76,14 @@ ver_num_list = {
     "舞": 6149,
     "熊": 55101,
     "華": 109101,
-    "爽": 159101}
+    "爽": 159101
+}
 plate_num_list = {
     "極": 0,
     "将": 1,
     "神": 2,
-    "舞舞": 3}
+    "舞舞": 3
+}
 achie_ranks = {'SSS+': 100.5, 'SSS': 100, 'SS+': 99.5, 'SS': 99, 'S+': 98, 'S': 97, 'AAA': 94,
                'AA': 90, 'A': 80, 'BBB': 75, 'BB': 70, 'B': 60, 'C': 50, 'D': 0}
 achie_ranks_regex = f"({'|'.join(achie_ranks.keys())})"
@@ -101,6 +103,13 @@ new_id_list = [10021, 10181, 10188, 10690, 11032, 11089, 11090, 11091, 11092, 11
                11162, 11163, 11164, 11168, 11171, 11175, 11176, 11177, 11178, 11179, 11180, 11184, 11185, 11186,
                11187, 11188, 11189, 11190, 11191, 11192, 11193, 11194, 11195, 11198, 11199, 11200, 11206, 11210,
                11211, 11212, 11213, 11214, 11215, 11216, 11217, 11221]
-database_pool = PooledDB(creator=pymysql, maxconnections=490, mincached=5, maxcached=None, blocking=True,
-                         maxusage=None, ping=4, host="127.0.0.1", port=3306, user="root", password="Root-User",
-                         database="maimai", charset="utf8")
+mai_dbpool = PooledDB(creator=pymysql, maxconnections=480, mincached=5, maxcached=None, blocking=True,
+                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="root", password="Root-User",
+                      database="maimai", charset="utf8")
+player_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=5, maxcached=None, blocking=True,
+                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="root", password="Root-User",
+                      database="Player", charset="utf8")
+quotation_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=5, maxcached=None, blocking=True,
+                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="root", password="Root-User",
+                      database="Quotations", charset="utf8")
+mute_list = []

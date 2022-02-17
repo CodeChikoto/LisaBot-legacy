@@ -57,7 +57,7 @@ class BestList():
         def _fill_info(start: int, end: int, lock):
             nonlocal charts
             index_to_str = {0: "Basic", 1: "Advanced", 2: "Expert", 3: "Master", 4: "Re:MASTER"}
-            conn = database_pool.connection()
+            conn = mai_dbpool.connection()
             cursor = conn.cursor()
             for chart in charts[start:end]:
                 difficulty = index_to_str[chart["level_index"]]
@@ -202,7 +202,7 @@ class BestList():
             x_ar, y_ar = (391, 348) if self.mode == "B40" else (306, 250)
             x_title, y_title = (199, 300) if self.mode == "B40" else (142, 219)
             x1_lr, y1_lr, x2_lr, y2_lr = (327, 412, 336, 405) if self.mode == "B40" else (246, 289, 252, 285)
-            conn = database_pool.connection()
+            conn = mai_dbpool.connection()
             cursor = conn.cursor()
             i = 0
             for y in range(7):
@@ -239,7 +239,7 @@ class BestList():
             x_title, y_title = (199, 1247) if self.mode == "B40" else (142, 1058)
             x1_lr, y1_lr, x2_lr, y2_lr = (327, 1359, 336, 1352) if self.mode == "B40" else (246, 1128, 252, 1124)
             i = 0
-            conn = database_pool.connection()
+            conn = mai_dbpool.connection()
             cursor = conn.cursor()
             for y in range(3):
                 if i >= len(self.new_list):
@@ -393,7 +393,7 @@ class BestList():
             plate_img = Image.open(f"./material/plates/by_version/{plate_base}")
         # customized plate base
         elif "qq" in self.payload:
-            conn = connect(host="127.0.0.1", user="root", password="Root-User", db="Player", port=3306)
+            conn = player_dbpool.connection()
             cursor = conn.cursor()
             cursor.execute(f"SELECT PlateNo FROM PlateSetting WHERE QQId={self.payload['qq']}")
             ans = cursor.fetchone()
@@ -446,7 +446,7 @@ def set_name_plate(user_in: str, user_id: int) -> str:
     [plate_num] = match(regex, user_in).groups()
     plate_num = int(plate_num)
     if f"{plate_num:06d}.png" in os.listdir("./material/plates/customized"):
-        conn = connect(host="127.0.0.1", user="root", password="Root-User", db="Player", port=3306)
+        conn = player_dbpool.connection()
         cursor = conn.cursor()
         cursor.execute(f"DELETE FROM PlateSetting WHERE QQId={user_id}")
         cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")
@@ -454,7 +454,7 @@ def set_name_plate(user_in: str, user_id: int) -> str:
         return "できました！"
     elif f"{plate_num:06d}.png" in os.listdir("./material/plates/special"):
         if user_id in [993433577, 1826356872, 1873618331]:
-            conn = connect(host="127.0.0.1", user="root", password="Root-User", db="Player", port=3306)
+            conn = player_dbpool.connection()
             cursor = conn.cursor()
             cursor.execute(f"DELETE FROM PlateSetting WHERE QQId={user_id}")
             cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")
