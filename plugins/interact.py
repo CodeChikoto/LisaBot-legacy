@@ -8,16 +8,14 @@ from tools.shared_var import *
 
 
 async def _bot_poked(bot: Bot, event: Event, state: dict) -> bool:
-    value = (event.notice_type == "notify" and event.sub_type == "poke" and
-             event.target_id == int(bot.self_id))
-    return value
+    return (event.notice_type == "notify" and event.sub_type == "poke" and
+            event.target_id == int(bot.self_id))
 
 
 async def _mute_poke(bot: Bot, event: Event, state: dict) -> bool:
-    value = (event.notice_type == "notify" and event.sub_type == "poke" and
-             event.user_id == 993433577 and event.target_id != 993433577 and
-             event.group_id in mute_list)
-    return value
+    return (event.notice_type == "notify" and event.sub_type == "poke" and
+            event.user_id == 993433577 and event.target_id != 993433577 and
+            event.group_id in mute_list)
 
 
 async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
@@ -28,12 +26,19 @@ async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
     return False
 
 
+async def _koto_muted(bot: Bot, event: Event, state: dict) -> bool:
+    return (event.notice_type == "group_ban" and event.user_id == 993433577 and event.duration)
+
+
+async def _bot_muted(bot: Bot, event: Event, state: dict) -> bool:
+    return (event.notice_type == "group_ban" and event.user_id == int(bot.self_id) and event.duration)
+
+
 random.seed(time.time())
 # {group_id: last_message, count, has_repeated}
 msg_record = {}
 in_song_guess = False
 id, title, img_path, koto_last = None, None, None, None
-
 
 poke_back = on_notice(rule=_bot_poked, block=True)
 repeat = on_message(priority=2)
@@ -41,6 +46,8 @@ is_online = on_regex(r"^(琴|琴琴|机修)在线(么|吗)(？|)", block=True)
 poke_mute = on_notice(rule=_mute_poke)
 today_luck = on_command("today_luck", aliases={"今日运势"}, block=True)
 public_notice = on_command(rule=_from_koto, cmd="/public ", aliases={"/广播 ", "/公告 "}, block=True)
+unmute_koto = on_notice(rule=_koto_muted)
+remind_bot_muted = on_notice(rule=_bot_muted)
 
 
 @poke_back.handle()
@@ -136,8 +143,7 @@ async def _(bot: Bot, event: Event, state: T_State):
 async def _(bot: Bot, event: Event, state: T_State):
     mute_time = random.randint(600, 2591999)
     try:
-        await bot.set_group_ban(group_id=event.group_id, user_id=event.target_id,
-                                duration=mute_time)
+        await bot.set_group_ban(group_id=event.group_id, user_id=event.target_id, duration=mute_time)
     except CQHTTPAdapterException:
         pass
     await poke_mute.finish()
@@ -165,3 +171,16 @@ async def _(bot: Bot, event: Event, state: T_State):
     for group in groups_list:
         await bot.send_group_msg(group_id=group["group_id"], message=msg)
         time.sleep(2)
+
+
+@unmute_koto.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    try:
+        await bot.set_group_ban(group_id=event.group_id, user_id=993433577, duration=0)
+    finally:
+        await bot.send_private_msg(user_id=993433577, message=f"群{event.group_id}里你被{event.operator_id}禁言了！")
+
+
+@remind_bot_muted.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    await bot.send_private_msg(user_id=993433577, message=f"群{event.group_id}里我被{event.operator_id}禁言了！")

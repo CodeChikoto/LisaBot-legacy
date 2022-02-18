@@ -13,23 +13,36 @@ bot_nick_regex = f"^({'|'.join(bot_nick)})"
 act = ["亲亲", "抱抱", "贴贴"]
 random.seed(time.time())
 
+
+async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
+    return True if event.user_id == 993433577 else False
+
+
 help_menu = on_regex(bot_nick_regex + " (help|帮助)", block=True)
 select = on_regex(bot_nick_regex + " .+(or|还是|或者).+", block=True)
 mute_mode = on_regex(bot_nick_regex + " (烟人|禁言)", block=True)
 bully = on_regex(bot_nick_regex + " .+欺负我")
 huge = on_regex(bot_nick_regex + f" ({'|'.join(act)})")
+boom_leave = on_regex(bot_nick_regex + f" (退群|爆炸)", rule=_from_koto)
 
 
 @help_menu.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    file = open("text/help", "r")
-    img = image_to_base64(text_to_image(file.read()))
+    file_list = [open("text/help_maimai", "r"), open("text/help_interact", "r")]
+    img_list = [image_to_base64(text_to_image(file.read())) for file in file_list]
     await help_menu.finish(Message([{
         "type": "image",
         "data": {
-            "file": f"base64://{str(img, encoding='utf-8')}"
+            "file": {f"base64://{str(img_list[0], encoding='utf-8')}"}
         }
-    }]))
+    },
+        {
+        "type": "image",
+        "data": {
+            "file": f"base64://{str(img_list[1], encoding='utf-8')}"
+        }
+    }
+    ]))
 
 
 @select.handle()
@@ -123,3 +136,11 @@ async def _(bot: Bot, event: Event, state: T_State):
             "data": {"file": f"{random_emoji('joyful')}"}
         }
     ]))
+
+
+@boom_leave.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    try:
+        await bot.set_group_kick(group_id=event.group_id, user_id=993433577)
+    finally:
+        await bot.set_group_leave(group_id=event.group_id)

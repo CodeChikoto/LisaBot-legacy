@@ -102,16 +102,22 @@ def search_by_name(user_in: str):
     return _format_song_list(res, page)
 
 
-def random_by_level(user_in: str):
-    [difficulty, level] = re.match("随歌 " + difficulty_regex + "\s?([0-9]+\+?)$", user_in.lower()).groups()
-    # (难度)(数字)(+|)
+def random_by_aug(user_in: str):
+    difficulty, inner_level, level = re.match("^随歌\s?" + difficulty_regex + "([0-9]+\.[0-9])?([0-9]+\+?)?",
+                                              user_in).groups()
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE Level='{level}' "
-                            f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
+    if inner_level:
+        amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} "
+                                f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
+    elif level:
+        amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE Level='{level}' "
+                                f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
+    else:
+        amount = cursor.execute(f"SELECT Id FROM SongInfo")
     if amount:
         rand_int = random.randint(0, amount - 1)
         [id] = cursor.fetchall()[rand_int]
@@ -150,38 +156,10 @@ def search_by_bpm(user_in: str):
     return _format_song_list(res, page)
 
 
-def random_by_inner_level(user_in: str):
-    [difficulty, inner_level] = re.match("随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])", user_in.lower()).groups()
-    if difficulty and difficulty not in difficulty_alias:
-        return "难度输入不对哦！", ""
-    difficulty = difficulty_alias[difficulty] if difficulty and difficulty in difficulty_alias else '%'
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} "
-                            f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
-    if amount:
-        rand_int = random.randint(0, amount - 1)
-        [id] = cursor.fetchall()[rand_int]
-        conn.close()
-        return select_song(f"id {id}")
-    else:
-        conn.close()
-        return "随机条件不对哦～", "None"
-
-
-def random_any():
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    amount = cursor.execute(f"SELECT Id FROM SongInfo")
-    rand_int = random.randint(0, amount - 1)
-    [id] = cursor.fetchall()[rand_int]
-    conn.close()
-    return select_song(f"id {id}")
-
-
 def select_song(user_in: str):
     [id, version] = re.match("id ([0-9]+)\s?(.+)?", user_in).groups()
     version = "舞萌DX 2021" if not version else version
+    version = version.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
@@ -200,9 +178,10 @@ BPM: {res[3]}
 分类：{res[5]}
 收录版本：{res[6]}
 等级："""
-    with open(f"./cache/{res[0]}{res[8]}", "wb") as cover:
-        cover.write(res[7])
-    cover.close()
+    if res[7]:
+        with open(f"./cache/{res[0]}{res[8]}", "wb") as cover:
+            cover.write(res[7])
+        cover.close()
     img_path = f"file://{os.getcwd()}/cache/{res[0]}{res[8]}" if res[7] else ""
     cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty WHERE Id={id} AND Version LIKE '%{version}%'"
                    "ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
@@ -218,9 +197,10 @@ BPM: {res[3]}
 def add_alias_handle(user_in: str):
     regex = "增加别名 ([0-9]+) (.+)"
     [id, alias] = re.match(regex, user_in).groups()
+    alias = alias.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"INSERT IGNORE SongAlias (Id,Alias) VALUES ({id},'{alias}')")
+    cursor.execute("INSERT IGNORE SongAlias (Id,Alias) VALUES (%s,%s)", (id, alias))
     conn.commit()
     conn.close()
 

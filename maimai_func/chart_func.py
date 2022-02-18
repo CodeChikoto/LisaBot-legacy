@@ -145,6 +145,7 @@ def select_chart(user_in: str):
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！", ""
     version = "舞萌DX 2021" if not version else version
+    version = version.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
@@ -250,7 +251,7 @@ async def get_achie_list(user_in: str, user_id: int):
         msg += f"\n{chart['achievements']:8.4f}  {combo_upper[chart['fc']]:3}  {chart['type']}  " \
                f"{difficulty}{float(inner_level)}  {chart['title']}"
     conn.close()
-    msg += f"\nCreated by LisaBot, maintained by Koto"
+    msg += f"\nCreated by LisaBot, maintained by Koto(RINkoTO)"
     return image_to_base64(text_to_image(msg))
 
 

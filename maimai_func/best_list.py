@@ -1,12 +1,12 @@
-from typing import *
-
+import re
+from decimal import Decimal
+import numpy as np
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from tools.get_data_func import *
 from re import match
-from tools.image import image_to_base64
+from tools.image import *
 from tools.shared_var import *
-from pymysql import connect
 import _thread
 import os
 
@@ -462,3 +462,84 @@ def set_name_plate(user_in: str, user_id: int) -> str:
             return "できました！"
     else:
         return "好像没有这张姓名框？"
+
+
+async def analyze_rating(user_in: str, user_id: int):
+
+    def _rate_to_inner_level(single_rating: int) -> str:
+        ans = []
+        achi_rank_coef = {"SSS+": 14.0, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5, "AAA": 10.5}
+        for achi_rank_trial in achi_rank_coef.keys():
+            inner_level_trial = round(float(single_rating / achi_rank_coef[achi_rank_trial]
+                                            / achie_ranks[achi_rank_trial] * 100), 1)
+            if 1.0 <= inner_level_trial <= 15.0:
+                single_rating_trial = int(inner_level_trial * achi_rank_coef[achi_rank_trial]
+                                          * achie_ranks[achi_rank_trial] / 100)
+                if single_rating_trial == single_rating:
+                    ans.append(f" {achie_ranks[achi_rank_trial]}% "
+                               f"{Decimal(inner_level_trial).quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')} ")
+                elif single_rating_trial > single_rating and \
+                        int((inner_level_trial - 0.1) * achi_rank_coef[achi_rank_trial]
+                            * achie_ranks[achi_rank_trial] / 100) == single_rating:
+                    if 1.0 <= inner_level_trial - 0.1 <= 15.0:
+                        ans.append(f" {achie_ranks[achi_rank_trial]}% "
+                                   f"{Decimal(inner_level_trial - 0.1).quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')} ")
+                elif single_rating_trial < single_rating and \
+                        int((inner_level_trial + 0.1) * achi_rank_coef[achi_rank_trial]
+                            * achie_ranks[achi_rank_trial] / 100) == single_rating:
+                    if 1.0 <= inner_level_trial + 0.1 <= 15.0:
+                        ans.append(f" {achie_ranks[achi_rank_trial]}% "
+                                   f"{Decimal(inner_level_trial + 0.1).quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')} ")
+        return "/".join(ans)
+
+    def _advice(var_single_rating: float, var_achie: float, var_inner_level: float, charts: list) -> str:
+        # 单曲 rating 方差
+        if var_single_rating <= 11:
+            # 定数方差
+            if var_inner_level <= 0.8:
+                # 达成率高低
+                if any([chart['achievements'] <= 99.5 for chart in charts]):
+                    return "可以试试把有的达成率往鸟加推一推？\n"
+                else:
+                    return "或许可以越级了～\n"
+            else:
+                if any([chart['achievements'] >= 100 for chart in charts]):
+                    return "试试把高定数谱面推一推？\n"
+                else:
+                    return "把全部达成率推一推？\n"
+        else:
+            if var_achie <= 2:
+                return "可以试试提高地板打高一点定数\n"
+            else:
+                if var_inner_level <= 2:
+                    return "可以试试提高地板打高一点达成率\n"
+                else:
+                    if any([chart['achievements'] >= 100 for chart in charts]):
+                        return "可以试试提高天花板打高一点达成率\n"
+                    else:
+                        return "大概应该下埋练一练准度？\n"
+
+    _, username = re.match("(底分|Ra|Rating)分析\s?(.+)?", user_in).groups()
+    payload = {"username": username} if username else {"qq": str(user_id)}
+    payload["version"] = list(set(version for version in version_alias.values()))
+    data = await get_player_data(payload, "best")
+    if isinstance(data, str):
+        return data, None
+    old_list, new_list = data["charts"]["sd"], data["charts"]["dx"]
+    text = f"{data['nickname']} Rating 组成如下：\n" \
+           f"B25 Rating 总计为{sum([chart['ra'] for chart in data['charts']['sd']])}\n" \
+           f"最高分{data['charts']['sd'][0]['ra']}，相当于{_rate_to_inner_level(data['charts']['sd'][0]['ra'])}\n" \
+           f"最低分{data['charts']['sd'][24]['ra']}，相当于{_rate_to_inner_level(data['charts']['sd'][24]['ra'])}\n"
+    var_single_rating, var_achie, var_inner_level = np.var([chart['ra'] for chart in data["charts"]["sd"]]), \
+                                                    np.var([chart['achievements'] for chart in data["charts"]["sd"]]), \
+                                                    np.var([chart['ds'] for chart in data["charts"]["sd"]])
+    text += _advice(var_single_rating, var_achie, var_inner_level, data["charts"]["sd"])
+    text += f"B15 Rating 总计为{sum([chart['ra'] for chart in data['charts']['dx']])}\n" \
+            f"最高分{data['charts']['dx'][0]['ra']}，相当于{_rate_to_inner_level(data['charts']['dx'][0]['ra'])}\n" \
+            f"最低分{data['charts']['dx'][14]['ra']}，相当于{_rate_to_inner_level(data['charts']['dx'][14]['ra'])}\n"
+    var_single_rating, var_achie, var_inner_level = np.var([chart['ra'] for chart in data["charts"]["dx"]]), \
+                                                    np.var([chart['achievements'] for chart in data["charts"]["dx"]]), \
+                                                    np.var([chart['ds'] for chart in data["charts"]["dx"]])
+    text += _advice(var_single_rating, var_achie, var_inner_level, data["charts"]["dx"])
+    text += "Analyzed by LisaBot, developed by Koto(RINkoTO)"
+    return None, image_to_base64(text_to_image(text))

@@ -23,6 +23,7 @@ break_dist = on_regex(f"^绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) (
                       f"([0-9]+),([0-9]+),([0-9]+),([0-9]+) ([0-9]+.[0-9]+)", block=True)
 inner_level_random_song = on_regex("^随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])")
 level_random_song = on_regex("^随歌 " + difficulty_regex + "\s?([0-9]+\+?)$")
+random_song = on_regex("^随歌" + difficulty_regex + "\s?([0-9]+\.[0-9])?([0-9]+\+?)?")
 try_random_chart = on_regex(r"^我要大战(.+)", block=True)
 best_list_pic = on_regex(r"^(b|B)(4|5)0\s?(.+)?")
 add_alias = on_regex("^增加别名 ([0-9]+) (.+)", block=True)
@@ -33,8 +34,8 @@ plate_list = on_command("plate_list", aliases={"牌子条件", "牌子列表"})
 view_name_plate = on_command("view_plates_list", aliases={"查看名牌板", "查看姓名框"})
 custom_name_plate = on_regex("^设置姓名框 ([0-9]+)")
 notes_search = on_regex("^物量查歌 ([0-9]+)\s?([0-9]+)?")
-bpm_search = on_regex("^(?!)(BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?")
-rating_analyzation = on_regex("^(?!)(底分|Ra|)分析")
+bpm_search = on_regex("^(BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?")
+rating_analyzation = on_regex("^(底分|Ra|Rating)分析")
 
 
 @inner_level_search.handle()
@@ -121,10 +122,6 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"id": event.message_id}
             },
             {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
                 "type": "text",
                 "data": {"text": msg}
             }]))
@@ -135,10 +132,6 @@ async def _(bot: Bot, event: Event, state: T_State):
     msg, img_path = select_chart(str(event.get_message()))
     try:
         await view_chart.send(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -158,10 +151,6 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"id": event.message_id}
             },
             {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
                 "type": "text",
                 "data": {"text": msg}
             }]))
@@ -169,7 +158,7 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @mai_what.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    msg, img_path = random_any()
+    msg, img_path = random_by_aug("")
     if img_path:
         final_msg = Message([
             {
@@ -257,44 +246,11 @@ async def _(bot: Bot, event: Event, state: T_State):
     await break_dist.finish(final_msg)
 
 
-@level_random_song.handle()
+@random_song.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    msg, img_path = random_by_level(str(event.get_message()))
-    try:
-        await level_random_song.send(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
-                "type": "image",
-                "data": {"file": f"{img_path}"}
-            },
-            {
-                "type": "text",
-                "data": {"text": msg}
-            }]))
-    except CQHTTPAdapterException:
-        await level_random_song.send(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
-                "type": "text",
-                "data": {"text": msg}
-            }]))
-
-
-@inner_level_random_song.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    msg, img_path = random_by_inner_level(str(event.get_message()))
+    msg, img_path = random_by_aug(str(event.get_message()))
     try:
         await inner_level_random_song.send(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -309,10 +265,6 @@ async def _(bot: Bot, event: Event, state: T_State):
             }]))
     except CQHTTPAdapterException:
         await inner_level_random_song.send(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -555,4 +507,26 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @rating_analyzation.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    pass
+    error, img = await analyze_rating(str(event.get_message()), event.user_id)
+    if not error:
+        await rating_analyzation.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "image",
+                "data": {"file": f"base64://{str(img, encoding='utf-8')}"}
+            }
+        ]))
+    else:
+        await rating_analyzation.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": error}
+            }
+        ]))
