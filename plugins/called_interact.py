@@ -1,4 +1,3 @@
-import re
 import time
 from nonebot import *
 from nonebot.adapters.cqhttp import *
@@ -105,7 +104,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             }
         ])
     else:
-        [emoji_id] = random.sample([1, 3], 1)
+        emoji_id = random.choice([1, 3])
         msg = Message([
             {
                 "type": "image",

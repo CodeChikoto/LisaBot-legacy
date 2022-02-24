@@ -1,7 +1,7 @@
 import re
 import random
 import os
-from tools.get_data_func import *
+from tools.get_player_data import *
 from tools.image import *
 from tools.shared_var import *
 from _thread import start_new_thread, allocate_lock
@@ -200,7 +200,7 @@ def random_chart(user_in: str):
     res = cursor.fetchall()
     conn.close()
     if res:
-        [[id, difficulty]] = random.sample(res, 1)
+        id, difficulty = random.choice(res)
         return select_chart(f"看谱 {difficulty}{id}")
     else:
         return "", ""
@@ -219,7 +219,7 @@ async def get_achie_list(user_in: str, user_id: int):
     [_, level, page, username] = re.match(regex, user_in.upper()).groups()
     page = int(page) if page else 1
     payload = {"username": username} if username else {"qq": user_id}
-    payload["version"] = list(set(version for version in version_alias.values()))
+    payload["version"] = get_all_request_versions()
     data = await get_player_data(payload, "plate")
     if isinstance(data, str):
         return data
@@ -268,7 +268,7 @@ async def get_level_process(user_in: str, user_id: int):
     if not total:
         return "本当にこのレベルが有りますか？"
     payload = {"username": username} if username else {"qq": user_id}
-    payload["version"] = list(set(version for version in version_alias.values()))
+    payload["version"] = get_all_request_versions()
     data = await get_player_data(payload, "plate")
     if isinstance(data, str):
         return data
@@ -310,52 +310,39 @@ async def get_level_process(user_in: str, user_id: int):
 
 async def get_plate_process(user_in: str, user_id: int) -> str:
     def _find_finished(start: int, end: int, lock, plate: str):
-        nonlocal charts, finished
+        nonlocal charts, finished_amount, unfinished_chart
         if plate_require[plate] in achie_ranks.keys():
             for chart in charts[start:end]:
-                if chart["achievements"] >= achie_ranks[plate_require[plate]]:
-                    finished[chart["level_index"]] += 1
+                if (chart["id"] not in [70, 853] and chart["level_index"] != 4) or \
+                        (chart["level_index"] == 4 and ver == '舞'):
+                    if chart["achievements"] >= achie_ranks[plate_require[plate]]:
+                        finished_amount[chart["level_index"]] += 1
+                    elif len(unfinished_chart) < 5:
+                        unfinished_chart.append(chart)
         elif plate_require[plate] in combo_ranks.keys():
             for chart in charts[start:end]:
-                if combo_ranks[combo_upper[chart["fc"]]] <= combo_ranks[plate_require[plate]]:
-                    finished[chart["level_index"]] += 1
+                if (chart["id"] not in [70, 853] and chart["level_index"] != 4) or \
+                        (chart["level_index"] == 4 and ver == '舞'):
+                    if combo_ranks[combo_upper[chart["fc"]]] <= combo_ranks[plate_require[plate]]:
+                        finished_amount[chart["level_index"]] += 1
+                    elif len(unfinished_chart) < 5:
+                        unfinished_chart.append(chart)
         elif plate_require[plate] in sync_ranks.keys():
             for chart in charts[start:end]:
-                if sync_ranks[sync_upper[chart["fs"]]] <= sync_ranks[plate_require[plate]]:
-                    finished[chart["level_index"]] += 1
+                if (chart["id"] not in [70, 853] and chart["level_index"] != 4) or \
+                        (chart["level_index"] == 4 and ver == '舞'):
+                    if sync_ranks[sync_upper[chart["fs"]]] <= sync_ranks[plate_require[plate]]:
+                        finished_amount[chart["level_index"]] += 1
+                    elif len(unfinished_chart) < 5:
+                        unfinished_chart.append(chart)
         lock.release()
 
-    def _pop_unneeded_charts(charts, lock):
-        nonlocal plate, ver, charts_part
-        i = 0
-        while i < len(charts):
-            if charts[i]["id"] == 70 or charts[i]["id"] == 853:
-                charts.pop(i)
-            elif plate != "霸者" and ver != '舞' and charts[i]["level_index"] == 4:
-                charts.pop(i)
-            else:
-                i += 1
-        charts_part += charts
-        lock.release()
-
-    regex = f"({'|'.join(version_alias.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
-    # ver = 版本，plate = 牌子/霸者
+    regex = f"({'|'.join(version_aliases.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
+    # ver = 版本，plate = 牌子（含霸者）
     ver, plate, username = re.match(regex, user_in).groups()
-    ver = "真" if ver == "初" else ("熊" if ver in ['華', '华'] else ver)
-    if ver == "真" and plate == "将":
-        return "没有真将哦！"
-    if plate == "霸者" or ver == "舞":
-        payload = {"version": list(set(version for version in version_alias.values()))}
-        i = 0
-        while i < len(payload["version"]):
-            if re.search("でらっくす", payload["version"][i]):
-                payload["version"].pop(i)
-            else:
-                i += 1
-    elif ver == "真":
-        payload = {"version": [version_alias["初"], version_alias["真"]]}
-    else:
-        payload = {"version": [version_alias[ver]]}
+    if plate in ["霸者", "覇者"]:
+        ver = "舞"
+    payload = {"version": version_aliases[ver][2]}
     if username:
         payload["username"] = username
     else:
@@ -367,54 +354,22 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
 
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    # 真 = maimai + maimai PLUS
-    if ver == "真":
-        cursor.execute(f"SELECT COUNT(DISTINCT SI.Id) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
-                       f"WHERE SI.Version IN ('{version_alias['初']}','{version_alias['真']}') AND "
-                       f"CD.Version='舞萌DX 2021' AND CD.Difficulty!='Re:MASTER'")
-        [song_amount] = cursor.fetchone()
-        # ジングルベル
-        song_amount -= 1
-        chart_amount = int(song_amount * 4) - 4
-    elif ver == "熊":
-        song_amount, chart_amount = 95, 380
-    # GreeN to FiNALE, no Re:M
-    elif plate != "霸者" and ver != "舞":
-        cursor.execute(f"SELECT COUNT(DISTINCT SI.Id) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id WHERE "
-                       f"SI.Version='{version_alias[ver].replace('でらっくす', 'DX') if ver != '雪' else 'maimai MiLK PLUS'}' "
-                       f"AND CD.Version='舞萌DX 2021' AND CD.Difficulty!='Re:MASTER'")
-        [song_amount] = cursor.fetchone()
-        # 前前前世
-        song_amount -= 1 if ver in ['菫', '堇'] else 0
-        chart_amount = int(song_amount * 4)
-        chart_amount -= 4 if ver == '菫' or ver == '堇' else 0
-    # 舞XX或霸者
-    elif plate == "霸者" or ver == '舞':
-        cursor.execute(f"SELECT COUNT(DISTINCT SI.Id) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
-                       f"WHERE SI.ChartType='SD' AND CD.Version='舞萌DX 2021'")
-        [song_amount] = cursor.fetchone()
-        song_amount -= 2
-        cursor.execute(f"SELECT COUNT(*) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
-                       f"WHERE SI.ChartType='SD' AND CD.Version='舞萌DX 2021'")
-        [chart_amount] = cursor.fetchone()
-        chart_amount -= 9
+    version_regex = "','".join(version_aliases[ver][1])
+    # use ChinaVersion in Table SongInfo
+    if ver == '舞':
+        cursor.execute(f"SELECT COUNT(DISTINCT SI.Id),COUNT(*) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
+                       f"WHERE SI.ChinaVersion IN ('{version_regex}') AND CD.Version='舞萌DX 2021' "
+                       f"AND SI.Id NOT IN (70,853)")
+    else:
+        cursor.execute(f"SELECT COUNT(DISTINCT SI.Id),COUNT(*) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
+                       f"WHERE SI.ChinaVersion IN ('{version_regex}') AND CD.Version='舞萌DX 2021' "
+                       f"AND CD.Difficulty!='Re:MASTER' AND SI.Id NOT IN (70,853)")
+    song_amount, chart_amount = cursor.fetchone()
     conn.close()
 
-    # pop charts not required finished
-    played = len(charts)
-    locks_list, charts_part = [], []
-    for i in range(4):
-        lock = allocate_lock()
-        lock.acquire()
-        locks_list.append(lock)
-        # for i in range(4):
-        start_new_thread(_pop_unneeded_charts, (charts[int(played / 4 * i):int(played / 4 * (i + 1))], locks_list[i]))
-    while any(lock.locked() for lock in locks_list):
-        pass
-    charts = charts_part
-
     # find finished charts
-    played, finished = len(charts), [0, 0, 0, 0, 0]
+    locks_list, played, finished_amount, unfinished_chart = [allocate_lock() for _ in range(4)], len(charts), \
+                                                            [0, 0, 0, 0, 0], []
     for i in range(4):
         locks_list[i].acquire()
         # for i in range(4):
@@ -422,16 +377,25 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
     while any(lock.locked() for lock in locks_list):
         pass
 
-    msg = f"你的{ver if ver else ''}{plate}总完成进度{sum(finished)}/{chart_amount}\n"
-    if finished != chart_amount:
-        msg += f"{plate}的达成要求是 {plate_require[plate]}\n" \
-               f"未完成情况如下："
-        for i, difficulty in enumerate(["Basic", "Advanced", "Expert", "Master"]):
-            msg += f"\n{difficulty}  {song_amount - finished[i]}/{song_amount}"
-        if plate == "霸者" or ver == '舞':
-            msg += f"\nRe:MASTER  {chart_amount - 4 * song_amount - finished[4]}/{chart_amount - 4 * song_amount}"
-        msg += f"\n剩余{chart_amount - sum(finished)}张谱" \
-               f"\n单刷最快需要{int(ceil((chart_amount - sum(finished)) / 3))}局捏！"
+    text = f"{plate}的要求是{plate_require[plate]}\n" \
+           f"你的{ver}{plate}完成情况如下：\n"
+    if sum(finished_amount) == chart_amount:
+        text += f"不剩！できました、おめでとう！"
     else:
-        msg += "できました！"
-    return msg
+        text += f"已完成{sum(finished_amount)}/{chart_amount}，剩余{chart_amount - sum(finished_amount)}\n" \
+                f"各难度剩余情况如下：\n"
+        for difficulty, amount in zip(["Basic", "Advanced", "Expert", "Master"], finished_amount):
+            if amount == song_amount:
+                continue
+            text += f"{difficulty}  {song_amount - amount}/{song_amount}\n"
+        if ver == '舞':
+            text += f"Re:Master  {chart_amount - 4 * song_amount - finished_amount[4]}/" \
+                    f"{chart_amount - 4 * song_amount}\n"
+        if len(unfinished_chart) < 5:
+            for chart in unfinished_chart:
+                text += f"剩余谱面如下：\n" \
+                        f"{difficulty_short[chart['level_index']]}  {chart['id']}  {chart['title']}\n"
+        text += f"拼机最快需要{ceil((chart_amount - sum(finished_amount)) / 4)}局"
+        text += f"，单刷最快需要{ceil((chart_amount - sum(finished_amount)) / 3)}局\n" if plate != "舞舞" else "\n"
+        text += "頑張ってね！"
+    return text

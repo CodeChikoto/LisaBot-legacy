@@ -1,9 +1,10 @@
+import random
 import re
 from decimal import Decimal
 import numpy as np
 import requests
 from PIL import Image, ImageDraw, ImageFont
-from tools.get_data_func import *
+from tools.get_player_data import *
 from re import match
 from tools.image import *
 from tools.shared_var import *
@@ -17,8 +18,8 @@ class BestList():
         self.nickname, self.plate = "", None
         self.payload = payload
         self.mode = mode
-        self.bg_path = "./material/B40.png" if self.mode == "B40" \
-            else "./material/B50.png"
+        self.bg_path = "./material/background/B40-uni-lisa.png" if self.mode == "B40" \
+            else "./material/background/B50-uni-lisa.png"
         self.bg_img = Image.open(self.bg_path)
         self.bg_draw = ImageDraw.Draw(self.bg_img)
         self.old_list, self.new_list = [], []
@@ -40,20 +41,6 @@ class BestList():
             return False
 
     async def get_best_50(self) -> bool:
-        achi_rank_coef = {"SSS+": 22.4, "SSS": 21.6, "SS+": 21.1, "SS": 20.8, "S+": 20.3, "S": 20.0,
-                          "AAA": 16.8, "AA": 15.2, "A": 13.6, "BBB": 12.0, "BB": 11.2, "B": 9.6,
-                          "C": 8.0, "D": 0}
-
-        def _cal_single_rating(achi: float, inner_level: float) -> (int, str):
-            achi_rank = None
-            for achi_rank_trial in achie_ranks.keys():
-                if achi >= achie_ranks[achi_rank_trial]:
-                    achi_rank = achi_rank_trial
-                    break
-            achi = 100.5 if achi > 100.5 else achi
-            return int(achi / 100 * achi_rank_coef[achi_rank] * float(inner_level)), \
-                   achi_rank.lower().replace('+', 'p')
-
         def _fill_info(start: int, end: int, lock):
             nonlocal charts
             index_to_str = {0: "Basic", 1: "Advanced", 2: "Expert", 3: "Master", 4: "Re:MASTER"}
@@ -71,6 +58,19 @@ class BestList():
                 chart["level_label"], chart["song_id"] = difficulty, id
             conn.close()
             lock.release()
+
+        def _cal_single_rating(achi: float, inner_level: float) -> (int, str):
+            achi_rank_coef = {"SSS+": 22.4, "SSS": 21.6, "SS+": 21.1, "SS": 20.8, "S+": 20.3, "S": 20.0,
+                              "AAA": 16.8, "AA": 15.2, "A": 13.6, "BBB": 12.0, "BB": 11.2, "B": 9.6,
+                              "C": 8.0, "D": 0}
+            achi_rank = None
+            for achi_rank_trial in achie_ranks.keys():
+                if achi >= achie_ranks[achi_rank_trial]:
+                    achi_rank = achi_rank_trial
+                    break
+            achi = 100.5 if achi > 100.5 else achi
+            single_rating = int(achi / 100 * achi_rank_coef[achi_rank] * float(inner_level))
+            return single_rating, achi_rank.lower().replace('+', 'p')
 
         data = await get_player_data(self.payload, "plate")
         if isinstance(data, dict):
@@ -102,106 +102,91 @@ class BestList():
     def draw_list(self):
         difficulty_file = {"Basic": "BSC", "Advanced": "ADV", "Expert": "EXP", "Master": "MST",
                            "Re:MASTER": "MST_Re"}
-        ranks_alias = {"fcp": "FCp", "fc": "FC", "ap": "AP", "app": "APp",
-                       "fs": "FS", "fsp": "FSp", "fsd": "FSD", "fsdp": "FSDp"}
+        combo_sync_file = {"fcp": "FCp", "fc": "FC", "ap": "AP", "app": "APp",
+                           "fs": "FS", "fsp": "FSp", "fsd": "FSD", "fsdp": "FSDp"}
         achi_rank_file = {"sssp": "SSSp", "sss": "SSS", "ssp": "SSp", "ss": "SS", "sp": "Sp", "s": "S",
                           "aaa": "AAA", "aa": "AA", "a": "A", "bbb": "BBB", "bb": "BB", "b": "B",
                           "c": "C", "d": "D"}
-        title_font = ImageFont.truetype("./SourceHanSans_17.ttf", (24 if self.mode == "B40" else 20), encoding="utf-8")
-        whole_font = ImageFont.truetype("./Dongqing.otf", 40, encoding="utf-8")
-        deci_font = ImageFont.truetype("./Dongqing.otf", 24, encoding="utf-8")
+        title_font = ImageFont.truetype("./SourceHanSans_17.ttf", 20, encoding="utf-8")
         achi_font = ImageFont.truetype("./Dongqing.otf", 24, encoding="utf-8")
-        level_font = ImageFont.truetype("./Dongqing.otf", (16 if self.mode == "B40" else 13), encoding="utf-8")
-        rate_font = ImageFont.truetype("./Dongqing.otf", (24 if self.mode == "B40" else 18), encoding="utf-8")
+        level_font = ImageFont.truetype("./Dongqing.otf", 14, encoding="utf-8")
+        sin_rating_font = ImageFont.truetype("./Dongqing.otf", 18, encoding="utf-8")
         bg_drawer = ImageDraw.Draw(self.bg_img)
-        x_gap, y_gap = (480, 175) if self.mode == "B40" else (375, 115)
+        x_gap, y_gap = (375, 120) if self.mode == "B40" else (375, 110)
 
         # fetch cover from database, return cover path
         def _draw_cover(id: int, x: int, y: int, cursor):
-            cursor.execute(f"SELECT Cover,ImageExt FROM SongInfo WHERE Id={id}")
-            [cover_blob, ext] = cursor.fetchone()
-            # resp = cursor.fetchone()
-            with open("./cache/" + str(id) + ext, "wb") as cover_file:
-                cover_file.write(cover_blob)
-            cover_file.close()
-            cover_img = Image.open("./cache/" + str(id) + ext).convert("RGB")
-            cover_img = cover_img.resize((130, 130)) if self.mode == "B40" \
-                else cover_img.resize((80, 80))
+            if f"{id}.png" not in os.listdir("./cache"):
+                cursor.execute(f"SELECT Cover,ImageExt FROM SongInfo WHERE Id={id}")
+                [cover_blob, ext] = cursor.fetchone()
+                with open("./cache/" + str(id) + ext, "wb") as cover_file:
+                    cover_file.write(cover_blob)
+                cover_file.close()
+            cover_img = Image.open(f"./cache/{str(id)}.png").convert("RGB")
+            cover_img = cover_img.resize((80, 80))
             self.bg_img.paste(cover_img, (x, y))
 
         # frame outside song cover
-        def _draw_chart_frame(difficulty: str, x: int, y: int):
+        def _draw_difficulty_frame(difficulty: str, x: int, y: int):
             difficulty = difficulty_file[difficulty]
-            chart_frame_img = Image.open(f"./material/UI_UPE_MusicJacket_Base_{difficulty}.png")
-            chart_frame_img = chart_frame_img.resize((188, 171)) if self.mode == "B40" \
-                else chart_frame_img.resize((115, 105))
+            chart_frame_img = Image.open(f"./material/difficulty_frame/UI_UPE_MusicJacket_Base_{difficulty}.png")
+            chart_frame_img = chart_frame_img.resize((112, 102))
             self.bg_img.paste(chart_frame_img, (x, y), mask=chart_frame_img.split()[3])
 
         # AP/FC, FS/FSD
         def _draw_combo_sync_rank(combo_type: str, sync_type: str, x: int, y: int):
             if combo_type:
-                combo_img = Image.open(f"./material/UI_MSS_MBase_Icon_{ranks_alias[combo_type]}.png")
-                combo_img = combo_img.resize((40, 40)) if self.mode == "B40" \
-                    else combo_img.resize((28, 28))
+                combo_img = Image.open(f"./material/rate_icon/UI_MSS_MBase_Icon_{combo_sync_file[combo_type]}.png")
+                combo_img = combo_img.resize((28, 28))
                 self.bg_img.paste(combo_img, (x, y), mask=combo_img.split()[3])
             if sync_type:
-                sync_img = Image.open(f"./material/UI_MSS_MBase_Icon_{ranks_alias[sync_type]}.png")
-                sync_img = sync_img.resize((40, 40)) if self.mode == "B40" \
-                    else sync_img.resize((28, 28))
-                self.bg_img.paste(sync_img, (x + (36 if self.mode == "B40" else 24), y), mask=sync_img.split()[3])
+                sync_img = Image.open(f"./material/rate_icon/UI_MSS_MBase_Icon_{combo_sync_file[sync_type]}.png")
+                sync_img = sync_img.resize((28, 28))
+                self.bg_img.paste(sync_img, (x + 24, y), mask=sync_img.split()[3])
 
         # 谱面类型
         def _draw_chart_type(chart_type: str, x: int, y: int):
             chart_type_img = Image.open("./material/UI_TST_Infoicon_DeluxeMode.png") \
                 if chart_type == "DX" else Image.open("./material/UI_TST_Infoicon_StandardMode.png")
-            chart_type_img = chart_type_img.resize((70, 22)) if self.mode == "B40" \
-                else chart_type_img.resize((50, 16))
+            chart_type_img = chart_type_img.resize((50, 16))
             self.bg_img.paste(chart_type_img, (x, y), mask=chart_type_img.split()[3])
 
         # 评级
         def _draw_achie_rank(rate: str, x: int, y: int):
-            rate_img = Image.open(f"./material/UI_GAM_Rank_{achi_rank_file[rate]}.png")
-            rate_img = rate_img.resize((100, 40)) if self.mode == "B40" \
-                else rate_img.resize((70, 28))
+            rate_img = Image.open(f"./material/achieve_rank/UI_TTR_Rank_{achi_rank_file[rate]}.png")
+            rate_img = rate_img.resize((64, 30))
             self.bg_img.paste(rate_img, (x, y), mask=rate_img.split()[3])
 
         # 曲名标题，限长272/226
         def _draw_title(title: str, x: int, y: int):
-            max_len = 272 if self.mode == "B40" else 226
-            len_x = title_font.getsize(title)[0]
-            if len_x > max_len:
-                title = title[:int(max_len / len_x * len(title))]
+            if title_font.getsize(title)[0] > 226:
+                limit = lambda text: text if title_font.getsize(text)[0] <= 226 else limit(text[:-1])
+                title = limit(title)
             bg_drawer.text((x, y), title, "white", font=title_font)
 
-        # B40 完成率，whole 整数部分，deci 小数部分
-        def _draw_achi_40(achi: float, x1: int, y1: int, x2: int, y2: int):
-            whole, deci = f"{achi:.4f}".split('.')
-            whole += '.'
-            deci += '%'
-            whole_len = whole_font.getsize(whole)[0]
-            bg_drawer.text((x1 - whole_len, y1), whole, "white", whole_font)
-            bg_drawer.text((x2, y2), deci, "white", deci_font)
-
-        # B50 完成率，整数小数统一大小
-        def _draw_achi_50(achi: float, x: int, y: int):
+        # 达成率
+        def _draw_achi(achi: float, x: int, y: int):
             bg_drawer.text((x, y), f"{achi:.4f}%", "white", achi_font)
 
-        # 定数和单曲得分
-        def _draw_level_rate(inner_level: float, x1: int, y1: int, rate: int, x2: int, y2: int):
-            level_str = f"{inner_level} > "
-            level_str_len = level_font.getsize(level_str)[0]
-            bg_drawer.text((x1 - level_str_len, y1), level_str, "black", level_font)
-            bg_drawer.text((x2, y2), f"{rate}", "black", rate_font)
+        # 定数
+        def _draw_inner_level(inner_level: float, x: int, y: int):
+            bg_drawer.text((x - level_font.getsize(f"{inner_level} ▶")[0], y), f"{inner_level} ▶", "black", level_font)
+
+        # 单曲 rating
+        def _draw_single_rating(single_rating: int, x: int, y: int):
+            bg_drawer.text((x, y), f"{single_rating}", "black", sin_rating_font)
 
         def _draw_old_list(lock):
             # B25/35
-            x_cf, y_cf = (14, 280) if self.mode == "B40" else (24, 212)
-            x_cover, y_cover = (43, 303) if self.mode == "B40" else (42, 226)
-            x_csr, y_csr = (403, 399) if self.mode == "B40" else (315, 281)
-            x_ct, y_ct = (41, 413) if self.mode == "B40" else (40, 292)
-            x_ar, y_ar = (391, 348) if self.mode == "B40" else (306, 250)
-            x_title, y_title = (199, 300) if self.mode == "B40" else (142, 219)
-            x1_lr, y1_lr, x2_lr, y2_lr = (327, 412, 336, 405) if self.mode == "B40" else (246, 289, 252, 285)
+            x_df, y_df = (25, 232) if self.mode == "B40" else (26, 213)
+            x_cover, y_cover = (41, 243) if self.mode == "B40" else (42, 224)
+            x_csr, y_csr = (314, 301) if self.mode == "B40" else (315, 281)
+            x_ct, y_ct = (40, 308) if self.mode == "B40" else (42, 289)
+            x_ar, y_ar = (306, 267) if self.mode == "B40" else (307, 248)
+            x_achi, y_achi = (140, 271) if self.mode == "B40" else (141, 252)
+            x_title, y_title = (141, 237) if self.mode == "B40" else (142, 219)
+            x_level, y_level = (245, 309) if self.mode == "B40" else (246, 289)
+            x_sin_rating, y_sin_rating = (253, 306) if self.mode == "B40" else (254, 286)
             conn = mai_dbpool.connection()
             cursor = conn.cursor()
             i = 0
@@ -212,32 +197,30 @@ class BestList():
                     if i >= len(self.old_list):
                         break
                     chart_info = self.old_list[i]
-                    _draw_chart_frame(chart_info["level_label"], x_cf + x * x_gap, y_cf + y * y_gap)
+                    _draw_difficulty_frame(chart_info["level_label"], x_df + x * x_gap, y_df + y * y_gap)
                     _draw_cover(chart_info["song_id"], x_cover + x * x_gap, y_cover + y * y_gap, cursor)
                     _draw_combo_sync_rank(chart_info["fc"], chart_info["fs"], x_csr + x * x_gap, y_csr + y * y_gap)
                     _draw_chart_type(chart_info["type"], x_ct + x * x_gap, y_ct + y * y_gap)
                     _draw_achie_rank(chart_info["rate"], x_ar + x * x_gap, y_ar + y * y_gap)
                     _draw_title(chart_info["title"], x_title + x * x_gap, y_title + y * y_gap)
-                    if self.mode == "B40":
-                        _draw_achi_40(chart_info["achievements"], 295 + x * x_gap, 346 + y * y_gap,
-                                      298 + x * x_gap, 360 + y * y_gap)
-                    else:
-                        _draw_achi_50(chart_info["achievements"], 143 + x * x_gap, 252 + y * y_gap)
-                    _draw_level_rate(chart_info["ds"], x1_lr + x * x_gap, y1_lr + y * y_gap,
-                                     chart_info["ra"], x2_lr + x * x_gap, y2_lr + y * y_gap)
+                    _draw_achi(chart_info["achievements"], x_achi + x * x_gap, y_achi + y * y_gap)
+                    _draw_inner_level(chart_info["ds"], x_level + x * x_gap, y_level + y * y_gap)
+                    _draw_single_rating(chart_info["ra"], x_sin_rating + x * x_gap, y_sin_rating + y * y_gap)
                     i += 1
             conn.close()
             lock.release()
 
         def _draw_new_list(lock):
             # B15
-            x_cf, y_cf = (14, 1227) if self.mode == "B40" else (24, 1051)
-            x_cover, y_cover = (43, 1250) if self.mode == "B40" else (42, 1065)
-            x_csr, y_csr = (403, 1346) if self.mode == "B40" else (315, 1120)
-            x_ct, y_ct = (41, 1360) if self.mode == "B40" else (40, 1131)
-            x_ar, y_ar = (391, 1295) if self.mode == "B40" else (306, 1089)
-            x_title, y_title = (199, 1247) if self.mode == "B40" else (142, 1058)
-            x1_lr, y1_lr, x2_lr, y2_lr = (327, 1359, 336, 1352) if self.mode == "B40" else (246, 1128, 252, 1124)
+            x_df, y_df = (25, 872) if self.mode == "B40" else (26, 1023)
+            x_cover, y_cover = (41, 884) if self.mode == "B40" else (42, 1034)
+            x_csr, y_csr = (314, 941) if self.mode == "B40" else (315, 1091)
+            x_ct, y_ct = (40, 949) if self.mode == "B40" else (42, 1099)
+            x_ar, y_ar = (306, 907) if self.mode == "B40" else (307, 1058)
+            x_achi, y_achi = (140, 911) if self.mode == "B40" else (141, 1062)
+            x_title, y_title = (141, 876) if self.mode == "B40" else (142, 1029)
+            x_level, y_level = (245, 949) if self.mode == "B40" else (246, 1099)
+            x_sin_rating, y_sin_rating = (253, 946) if self.mode == "B40" else (254, 1096)
             i = 0
             conn = mai_dbpool.connection()
             cursor = conn.cursor()
@@ -248,19 +231,15 @@ class BestList():
                     if i >= len(self.new_list):
                         break
                     chart_info = self.new_list[i]
-                    _draw_chart_frame(chart_info["level_label"], x_cf + x * x_gap, y_cf + y * y_gap)
+                    _draw_difficulty_frame(chart_info["level_label"], x_df + x * x_gap, y_df + y * y_gap)
                     _draw_cover(chart_info["song_id"], x_cover + x * x_gap, y_cover + y * y_gap, cursor)
                     _draw_combo_sync_rank(chart_info["fc"], chart_info["fs"], x_csr + x * x_gap, y_csr + y * y_gap)
                     _draw_chart_type(chart_info["type"], x_ct + x * x_gap, y_ct + y * y_gap)
                     _draw_achie_rank(chart_info["rate"], x_ar + x * x_gap, y_ar + y * y_gap)
                     _draw_title(chart_info["title"], x_title + x * x_gap, y_title + y * y_gap)
-                    if self.mode == "B40":
-                        _draw_achi_40(chart_info["achievements"], 295 + x * x_gap, 1293 + y * y_gap,
-                                      298 + x * x_gap, 1307 + y * y_gap)
-                    else:
-                        _draw_achi_50(chart_info["achievements"], 143 + x * x_gap, 1091 + y * y_gap)
-                    _draw_level_rate(chart_info["ds"], x1_lr + x * x_gap, y1_lr + y * y_gap,
-                                     chart_info["ra"], x2_lr + x * x_gap, y2_lr + y * y_gap)
+                    _draw_achi(chart_info["achievements"], x_achi + x * x_gap, y_achi + y * y_gap)
+                    _draw_inner_level(chart_info["ds"], x_level + x * x_gap, y_level + y * y_gap)
+                    _draw_single_rating(chart_info["ra"], x_sin_rating + x * x_gap, y_sin_rating + y * y_gap)
                     i += 1
             conn.close()
             lock.release()
@@ -334,28 +313,27 @@ class BestList():
                     rank_id = "14"
                 else:
                     rank_id = str(int(14 + (self.rank_rating - 2000) / 10))
-                rank_img = Image.open(f"./material/UI_Rank_{rank_id}.png")
+                rank_img = Image.open(f"./material/rank_icon/UI_Rank_{rank_id}.png")
                 rank_img = rank_img.resize((100, 43))
                 plate_img.paste(rank_img, (416, 9), mask=rank_img.split()[3])
 
-            rating_frame_img = Image.open(f"./material/UI_CMN_DXRating_{_specific_frame()}.png")
-            rating_frame_img = rating_frame_img.resize((226, 44))
+            rating_frame_img = Image.open(f"./material/rating_box/UI_CMN_DXRating_{_specific_frame()}.png")
+            rating_frame_img = rating_frame_img.resize((230, 45))
             plate_img.paste(rating_frame_img, (176, 9), mask=rating_frame_img.split()[3])
             dxrating_str = reversed(str(self.dx_rating))
-            for x, num in zip([351, 334, 316, 298, 280], dxrating_str):
-                num_img = Image.open(f"./material/{num}.png")
+            for x, num in zip([355, 337, 319, 301, 283], dxrating_str):
+                num_img = Image.open(f"./material/numbers/{num}.png")
                 num_img = num_img.resize((21, 25))
-                plate_img.paste(num_img, (x, 19), mask=num_img.split()[3])
+                plate_img.paste(num_img, (x, 20), mask=num_img.split()[3])
             _draw_rank_frame() if self.mode == "B40" else None
 
             note_img = Image.open("./material/UI_CMN_Shougou_Rainbow.png")
-            note_img = note_img.resize((353, 46))
-            plate_img.paste(note_img, (170, 114), mask=note_img.split()[3])
+            note_img = note_img.resize((352, 46))
+            plate_img.paste(note_img, (171, 116), mask=note_img.split()[3])
             font_note = ImageFont.truetype("./Dongqing.otf", 20, encoding="utf-8")
-            rating_note = f"B40:  {self.rating} + {self.rank_rating}" \
-                if self.mode == "B40" else "B50 Simulation"
+            rating_note = f"B40:  {self.rating} + {self.rank_rating}" if self.mode == "B40" else "Best 50 Simulation"
             len_x = font_note.getsize(rating_note)[0]
-            plate_draw.text((170 + int((353 - len_x) / 2), 125), rating_note, "white", font=font_note,
+            plate_draw.text((171 + int((352 - len_x) / 2), 127), rating_note, "white", font=font_note,
                             stroke_width=2, stroke_fill="black")
 
         def _draw_name():
@@ -364,9 +342,9 @@ class BestList():
             plate_img.paste(white_frame_img, (174, 59), mask=white_frame_img.split()[3])
             name_font = ImageFont.truetype("./SourceHanSans_17.ttf", 30, encoding="utf-8")
             nickname = ' '.join(self.nickname)
-            len_x = name_font.getsize(nickname)[0]
-            if len_x > 271:
-                nickname = nickname[:int(271 / len_x * len(nickname))]
+            if name_font.getsize(nickname)[0] > 271:
+                limit = lambda text: text if name_font.getsize(text)[0] <= 271 else limit(text[:-1])
+                nickname = limit(nickname)
             plate_draw.text((193, 61), nickname, "black", name_font)
             if "qq" in self.payload:
                 try:
@@ -377,7 +355,7 @@ class BestList():
                     head_img = head_img.resize((143, 143))
                     head_img_mask = Image.open(f"./material/UI_Icon_000001.png")
                     head_img_mask = head_img_mask.resize((143, 143))
-                    plate_img.paste(head_img, (11, 10), mask=head_img_mask)
+                    plate_img.paste(head_img, (12, 9), mask=head_img_mask)
                 finally:
                     pass
 
@@ -390,7 +368,7 @@ class BestList():
             plate_num = ver_num_list[groups[0]] + plate_num_list[groups[1]] if groups[1] else ver_num_list[groups[0]]
             plate_num += 1 if groups[0] == "真" and groups[1] == "極" else 0
             plate_base = f"{plate_num:06d}.png"
-            plate_img = Image.open(f"./material/plates/by_version/{plate_base}")
+            plate_img = Image.open(f"./material/plates/by_version/UI_Plate_{plate_base}")
         # customized plate base
         elif "qq" in self.payload:
             conn = player_dbpool.connection()
@@ -402,12 +380,12 @@ class BestList():
             try:
                 plate_img = Image.open(f"./material/plates/customized/{plate_base}") if ans else plate_img
             except FileNotFoundError:
-                plate_img = Image.open(f"./material/plates/special/{plate_base}") if ans else plate_img
+                plate_img = Image.open(f"./material/plates/special/UI_Plate_{plate_base}") if ans else plate_img
         plate_img = plate_img.resize((1037, 167))
         plate_draw = ImageDraw.Draw(plate_img)
         _draw_name()
         _draw_dxrating()
-        self.bg_img.paste(plate_img, (374, 19), mask=plate_img.split()[3])
+        self.bg_img.paste(plate_img, (373, 18), mask=plate_img.split()[3])
         lock.release()
 
     def get_pic(self):
@@ -431,7 +409,7 @@ async def get_best_pic(user_in: str, user_id: int):
     _, mode, username = match(regex, user_in).groups()
     mode = "B40" if mode == '4' else "B50"
     payload = {"username": username} if username else {"qq": str(user_id)}
-    payload["version"] = list(set(version for version in version_alias.values()))
+    payload["version"] = get_all_request_versions()
     if mode == "B40":
         best_list = BestList(payload, "B40")
     else:
@@ -465,8 +443,19 @@ def set_name_plate(user_in: str, user_id: int) -> str:
 
 
 async def analyze_rating(user_in: str, user_id: int):
+    def _get_difficulty_short(difficulty: str):
+        if difficulty == "Basic":
+            return "BSC"
+        elif difficulty == "Advanced":
+            return "ADV"
+        elif difficulty == "Expert":
+            return "EXP"
+        elif difficulty == "Master":
+            return "MST"
+        elif difficulty == "Re:MASTER":
+            return "REM"
 
-    def _rate_to_inner_level(single_rating: int) -> str:
+    def _rating_to_inner_level(single_rating: int) -> str:
         ans = []
         achi_rank_coef = {"SSS+": 14.0, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5, "AAA": 10.5}
         for achi_rank_trial in achi_rank_coef.keys():
@@ -490,7 +479,7 @@ async def analyze_rating(user_in: str, user_id: int):
                     if 1.0 <= inner_level_trial + 0.1 <= 15.0:
                         ans.append(f" {achie_ranks[achi_rank_trial]}% "
                                    f"{Decimal(inner_level_trial + 0.1).quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')} ")
-        return "/".join(ans)
+        return "/".join(ans) if ans else _rating_to_inner_level(single_rating + 1)
 
     def _advice(var_single_rating: float, var_achie: float, var_inner_level: float, charts: list) -> str:
         # 单曲 rating 方差
@@ -499,14 +488,14 @@ async def analyze_rating(user_in: str, user_id: int):
             if var_inner_level <= 0.8:
                 # 达成率高低
                 if any([chart['achievements'] <= 99.5 for chart in charts]):
-                    return "可以试试把有的达成率往鸟加推一推？\n"
+                    return "可以试试把低的达成率推一推？\n"
                 else:
-                    return "或许可以越级了～\n"
+                    return "或许可以越级试试高一点定数～\n"
             else:
                 if any([chart['achievements'] >= 100 for chart in charts]):
-                    return "试试把高定数谱面推一推？\n"
+                    return "试试把 B40 里高定数谱面推一推？\n"
                 else:
-                    return "把全部达成率推一推？\n"
+                    return "把 B40 全部达成率推一推？\n"
         else:
             if var_achie <= 2:
                 return "可以试试提高地板打高一点定数\n"
@@ -519,27 +508,76 @@ async def analyze_rating(user_in: str, user_id: int):
                     else:
                         return "大概应该下埋练一练准度？\n"
 
+    def _recommand(charts: list, mode: str):
+        ans, inlist_chart = [], []
+        for chart in charts:
+            inlist_chart.append((chart["song_id"], chart["level_label"]))
+        if any(chart['achievements'] < 100.5 for chart in charts):
+            for chart in charts:
+                if chart['achievements'] < 100.5:
+                    for i, aim_achi in enumerate(achie_ranks.values()):
+                        if chart['achievements'] >= aim_achi:
+                            break
+                    aim_achi = tuple(achie_ranks.values())[i - 1]
+                    ans.append(f"{chart['ds']}  {difficulty_short[chart['level_index']]}  {chart['song_id']}  "
+                               f"{chart['title']}  {aim_achi}%  "
+                               f"Rating+{_cal_single_rating(aim_achi, chart['ds']) - chart['ra']}")
+        avr_ra = int(np.mean([chart['ra'] for chart in charts]))
+        level_achi_list = _rating_to_inner_level(avr_ra).split('/')
+        for i, ele in enumerate(level_achi_list):
+            level_achi_list[i] = re.match("(.+)% (.+)", ele.strip()).groups()
+        conn = mai_dbpool.connection()
+        cursor = conn.cursor()
+        for achi, level in level_achi_list:
+            if mode == "B25":
+                cursor.execute(f"SELECT CD.InnerLevel,CD.Difficulty,SI.Id,SI.Title FROM ChartDifficulty CD "
+                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {float(level) + 0.1} AND "
+                               f"{float(level) + 0.4} AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion!='舞萌DX 2021'")
+            else:
+                cursor.execute(f"SELECT CD.InnerLevel,CD.Difficulty,SI.Id,SI.Title FROM ChartDifficulty CD "
+                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {float(level) + 0.1} AND "
+                               f"{float(level) + 0.4} AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion='舞萌DX 2021'")
+            recom_chart = cursor.fetchall()
+            ans += [f"{chart[0]}  {_get_difficulty_short(chart[1])}  {chart[2]}  {chart[3]}  " \
+                    f"{achi}% Rating+{_cal_single_rating(float(achi), chart[0]) - charts[-1]['ra']}"
+                    for chart in recom_chart if (chart[2], chart[1]) not in inlist_chart]
+        return random.sample(ans, min(3, len(ans)))
+
+    def _cal_single_rating(achi: float, inner_level: float) -> int:
+        achi_rank_coef = {"SSS+": 14, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5,
+                          "AAA": 10.5, "AA": 9.5, "A": 8.5, "BBB": 7.5, "BB": 7.0, "B": 6.0,
+                          "C": 5.0, "D": 0}
+        achi_rank = None
+        for achi_rank_trial in achie_ranks.keys():
+            if achi >= achie_ranks[achi_rank_trial]:
+                achi_rank = achi_rank_trial
+                break
+        achi = 100.5 if achi > 100.5 else achi
+        return int(achi / 100 * achi_rank_coef[achi_rank] * float(inner_level))
+
     _, username = re.match("(底分|Ra|Rating)分析\s?(.+)?", user_in).groups()
     payload = {"username": username} if username else {"qq": str(user_id)}
-    payload["version"] = list(set(version for version in version_alias.values()))
+    payload["version"] = get_all_request_versions()
     data = await get_player_data(payload, "best")
     if isinstance(data, str):
         return data, None
     old_list, new_list = data["charts"]["sd"], data["charts"]["dx"]
     text = f"{data['nickname']} Rating 组成如下：\n" \
            f"B25 Rating 总计为{sum([chart['ra'] for chart in data['charts']['sd']])}\n" \
-           f"最高分{data['charts']['sd'][0]['ra']}，相当于{_rate_to_inner_level(data['charts']['sd'][0]['ra'])}\n" \
-           f"最低分{data['charts']['sd'][24]['ra']}，相当于{_rate_to_inner_level(data['charts']['sd'][24]['ra'])}\n"
-    var_single_rating, var_achie, var_inner_level = np.var([chart['ra'] for chart in data["charts"]["sd"]]), \
-                                                    np.var([chart['achievements'] for chart in data["charts"]["sd"]]), \
-                                                    np.var([chart['ds'] for chart in data["charts"]["sd"]])
-    text += _advice(var_single_rating, var_achie, var_inner_level, data["charts"]["sd"])
+           f"最高分{data['charts']['sd'][0]['ra']}，相当于{_rating_to_inner_level(old_list[0]['ra'])}\n" \
+           f"最低分{data['charts']['sd'][24]['ra']}，相当于{_rating_to_inner_level(old_list[24]['ra'])}\n"
+    var_single_rating, var_achie, var_inner_level = np.var([chart['ra'] for chart in old_list]), \
+                                                    np.var([chart['achievements'] for chart in old_list]), \
+                                                    np.var([chart['ds'] for chart in old_list])
+    text += _advice(var_single_rating, var_achie, var_inner_level, old_list)
+    text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(old_list, "B25")) + "\n\n"
     text += f"B15 Rating 总计为{sum([chart['ra'] for chart in data['charts']['dx']])}\n" \
-            f"最高分{data['charts']['dx'][0]['ra']}，相当于{_rate_to_inner_level(data['charts']['dx'][0]['ra'])}\n" \
-            f"最低分{data['charts']['dx'][14]['ra']}，相当于{_rate_to_inner_level(data['charts']['dx'][14]['ra'])}\n"
+            f"最高分{data['charts']['dx'][0]['ra']}，相当于{_rating_to_inner_level(data['charts']['dx'][0]['ra'])}\n" \
+            f"最低分{data['charts']['dx'][14]['ra']}，相当于{_rating_to_inner_level(data['charts']['dx'][14]['ra'])}\n"
     var_single_rating, var_achie, var_inner_level = np.var([chart['ra'] for chart in data["charts"]["dx"]]), \
                                                     np.var([chart['achievements'] for chart in data["charts"]["dx"]]), \
                                                     np.var([chart['ds'] for chart in data["charts"]["dx"]])
-    text += _advice(var_single_rating, var_achie, var_inner_level, data["charts"]["dx"])
-    text += "Analyzed by LisaBot, developed by Koto(RINkoTO)"
+    text += _advice(var_single_rating, var_achie, var_inner_level, new_list)
+    text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(new_list, "B15")) + "\n\n"
+    text += "Analyzed by LisaBot, developed by Koto(RINkoTO) & Ryan"
     return None, image_to_base64(text_to_image(text))

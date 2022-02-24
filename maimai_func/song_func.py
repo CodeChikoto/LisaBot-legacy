@@ -103,8 +103,11 @@ def search_by_name(user_in: str):
 
 
 def random_by_aug(user_in: str):
-    difficulty, inner_level, level = re.match("^随歌\s?" + difficulty_regex + "([0-9]+\.[0-9])?([0-9]+\+?)?",
-                                              user_in).groups()
+    try:
+        difficulty, inner_level, level = re.match("^随歌\s?" + difficulty_regex + "([0-9]+\.[0-9])?([0-9]+\+?)?",
+                                                  user_in).groups()
+    except AttributeError:
+        difficulty, inner_level, level = None, None, None
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'

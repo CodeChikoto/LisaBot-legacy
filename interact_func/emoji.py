@@ -19,7 +19,7 @@ def random_emoji(type: str):
     cursor = conn.cursor()
     cursor.execute(f"SELECT Type,Image,ImageExt FROM Emoji WHERE Type LIKE '{type}'")
     res = cursor.fetchall()
-    [[type, image, ext]] = random.sample(res, 1)
+    type, image, ext = random.choice(res)
     with open(f"./cache/{type}{ext}", "wb") as file:
         file.write(image)
     return f"file://{os.getcwd()}/cache/{type}{ext}"
