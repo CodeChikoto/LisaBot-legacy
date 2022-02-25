@@ -116,12 +116,12 @@ new_id_list = [10021, 10181, 10188, 10690, 11032, 11089, 11090, 11091, 11092, 11
                11187, 11188, 11189, 11190, 11191, 11192, 11193, 11194, 11195, 11198, 11199, 11200, 11206, 11210,
                11211, 11212, 11213, 11214, 11215, 11216, 11217, 11221]
 mai_dbpool = PooledDB(creator=pymysql, maxconnections=480, mincached=5, maxcached=None, blocking=True,
-                      maxusage=None, ping=4, host="39.106.184.73", port=3306, user="anyone", password="UnpublicData",
+                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
                       database="maimai", charset="utf8")
 player_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=5, maxcached=None, blocking=True,
-                      maxusage=None, ping=4, host="39.106.184.73", port=3306, user="anyone", password="UnpublicData",
+                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
                       database="Player", charset="utf8")
 quotation_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=5, maxcached=None, blocking=True,
-                      maxusage=None, ping=4, host="39.106.184.73", port=3306, user="anyone", password="UnpublicData",
+                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
                       database="Quotations", charset="utf8")
 mute_list = []

@@ -49,13 +49,17 @@ class BestList():
             for chart in charts[start:end]:
                 difficulty = index_to_str[chart["level_index"]]
                 title_rep = chart["title"].replace("'", "\\'")
-                cursor.execute(f"SELECT Id,InnerLevel FROM ChartDifficulty WHERE Id IN "
-                               f"(SELECT Id FROM SongInfo WHERE Title='{title_rep}' AND ChartType='{chart['type']}') "
-                               f"AND Difficulty='{difficulty}' AND Version='舞萌DX 2021'")
-                [id, inner_level] = cursor.fetchone()
+                cursor.execute(f"SELECT CD.Id,CD.InnerLevel,SI.ChinaVersion FROM ChartDifficulty CD JOIN SongInfo SI "
+                               f"ON CD.Id=SI.Id WHERE SI.Title='{title_rep}' AND SI.ChartType='{chart['type']}' "
+                               f"AND CD.Difficulty='{difficulty}' AND CD.Version='舞萌DX 2021'")
+                [id, inner_level, china_version] = cursor.fetchone()
                 chart["ds"] = float(inner_level)
                 chart["ra"], chart["rate"] = _cal_single_rating(chart["achievements"], inner_level)
                 chart["level_label"], chart["song_id"] = difficulty, id
+                if china_version == "舞萌DX 2021":
+                    self.new_list.append(chart)
+                else:
+                    self.old_list.append(chart)
             conn.close()
             lock.release()
 
@@ -84,15 +88,10 @@ class BestList():
                 _thread.start_new_thread(_fill_info, (int(clear / 4 * i), int(clear / 4 * (i + 1)), locks_list[i]))
             while any(lock.locked() for lock in locks_list):
                 pass
-            charts.sort(key=lambda x: x["ra"], reverse=True)
-            self.old_list, self.new_list = [], []
-            for chart in charts:
-                if len(self.old_list) == 35 and len(self.new_list) == 15:
-                    break
-                if chart["song_id"] not in new_id_list and len(self.old_list) < 35:
-                    self.old_list.append(chart)
-                elif chart["song_id"] in new_id_list and len(self.new_list) < 15:
-                    self.new_list.append(chart)
+            self.old_list.sort(key=lambda x: x["ra"], reverse=True)
+            self.new_list.sort(key=lambda x: x["ra"], reverse=True)
+            self.old_list = self.old_list[0:35]
+            self.new_list = self.new_list[0:15]
             self.dx_rating = self.rating = sum(chart["ra"] for chart in self.old_list + self.new_list)
             return True
         else:
@@ -455,7 +454,8 @@ async def analyze_rating(user_in: str, user_id: int):
         elif difficulty == "Re:MASTER":
             return "REM"
 
-    def _rating_to_inner_level(single_rating: int) -> str:
+    # return [(achievement, inner_level), ]
+    def _rating_to_inner_level(single_rating: int) -> list:
         ans = []
         achi_rank_coef = {"SSS+": 14.0, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5, "AAA": 10.5}
         for achi_rank_trial in achi_rank_coef.keys():
@@ -465,83 +465,109 @@ async def analyze_rating(user_in: str, user_id: int):
                 single_rating_trial = int(inner_level_trial * achi_rank_coef[achi_rank_trial]
                                           * achie_ranks[achi_rank_trial] / 100)
                 if single_rating_trial == single_rating:
-                    ans.append(f" {achie_ranks[achi_rank_trial]}% "
-                               f"{Decimal(inner_level_trial).quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')} ")
+                    ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial, 1)))
                 elif single_rating_trial > single_rating and \
                         int((inner_level_trial - 0.1) * achi_rank_coef[achi_rank_trial]
                             * achie_ranks[achi_rank_trial] / 100) == single_rating:
                     if 1.0 <= inner_level_trial - 0.1 <= 15.0:
-                        ans.append(f" {achie_ranks[achi_rank_trial]}% "
-                                   f"{Decimal(inner_level_trial - 0.1).quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')} ")
+                        ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial - 0.1)))
                 elif single_rating_trial < single_rating and \
                         int((inner_level_trial + 0.1) * achi_rank_coef[achi_rank_trial]
                             * achie_ranks[achi_rank_trial] / 100) == single_rating:
                     if 1.0 <= inner_level_trial + 0.1 <= 15.0:
-                        ans.append(f" {achie_ranks[achi_rank_trial]}% "
-                                   f"{Decimal(inner_level_trial + 0.1).quantize(Decimal('0.1'), rounding='ROUND_HALF_UP')} ")
-        return "/".join(ans) if ans else _rating_to_inner_level(single_rating + 1)
+                        ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial + 0.1, 1)))
+        return ans
 
-    def _advice(var_single_rating: float, var_achie: float, var_inner_level: float, charts: list) -> str:
+    def _advice(charts: list, mode: str) -> str:
+        if len(charts) not in [25, 15]:
+            return "先打满谱面试试吧！\n"
+        var_single_rating, var_achie, var_inner_level = np.var([chart['ra'] for chart in charts]), \
+                                                        np.var([chart['achievements'] for chart in charts]), \
+                                                        np.var([chart['ds'] for chart in charts])
         # 单曲 rating 方差
-        if var_single_rating <= 11:
+        if var_single_rating <= (10 if mode == "B25" else 13):
             # 定数方差
-            if var_inner_level <= 0.8:
-                # 达成率高低
-                if any([chart['achievements'] <= 99.5 for chart in charts]):
-                    return "可以试试把低的达成率推一推？\n"
+            if var_inner_level <= (0.8 if mode == "B25" else 1.1):
+                # 达成率总体高低
+                if any([chart['achievements'] < 100 for chart in charts]):
+                    return "可以把没有 SSS 以上的推一推？\n"
+                elif all([chart['achievements'] >= 100 for chart in charts]) and \
+                        any([chart['achievements'] < 100.5 for chart in charts]):
+                    return "可以把没有 SSS+ 以上的推一推？\n"
                 else:
-                    return "或许可以越级试试高一点定数～\n"
+                    return "可以越级试试高一点定数的谱面～\n"
             else:
-                if any([chart['achievements'] >= 100 for chart in charts]):
-                    return "试试把 B40 里高定数谱面推一推？\n"
+                if any([chart['achievements'] < 100.5 for chart in charts]):
+                    return "试试把高定数没有 SSS+ 的推一推？\n"
                 else:
-                    return "把 B40 全部达成率推一推？\n"
+                    return "把全部谱面达成率推一推？\n"
         else:
-            if var_achie <= 2:
-                return "可以试试提高地板打高一点定数\n"
-            else:
-                if var_inner_level <= 2:
-                    return "可以试试提高地板打高一点达成率\n"
+            if var_achie <= (2 if mode == "B25" else 2.3):
+                if all([chart['achievements'] >= 100.5 for chart in charts]):
+                    return "试试高一点定数的谱面提高下界吧？\n"
+                elif all([chart['achievements'] >= 100 for chart in charts]) and \
+                        any([chart['achievements'] < 100.5 for chart in charts]):
+                    return "试试把没有 SSS+ 的谱面都推一推？\n"
                 else:
-                    if any([chart['achievements'] >= 100 for chart in charts]):
-                        return "可以试试提高天花板打高一点达成率\n"
-                    else:
-                        return "大概应该下埋练一练准度？\n"
+                    return "试试全部达成率推一推？\n"
+            else:
+                if var_inner_level >= (1.3 if mode == "B25" else 1.5):
+                    return "可以试试靠后的谱面提高达成率\n"
+                else:
+                    return "没有 SSS+ 的都可以试试推一推\n"
 
     def _recommand(charts: list, mode: str):
         ans, inlist_chart = [], []
         for chart in charts:
             inlist_chart.append((chart["song_id"], chart["level_label"]))
-        if any(chart['achievements'] < 100.5 for chart in charts):
-            for chart in charts:
-                if chart['achievements'] < 100.5:
-                    for i, aim_achi in enumerate(achie_ranks.values()):
-                        if chart['achievements'] >= aim_achi:
-                            break
-                    aim_achi = tuple(achie_ranks.values())[i - 1]
-                    ans.append(f"{chart['ds']}  {difficulty_short[chart['level_index']]}  {chart['song_id']}  "
-                               f"{chart['title']}  {aim_achi}%  "
-                               f"Rating+{_cal_single_rating(aim_achi, chart['ds']) - chart['ra']}")
-        avr_ra = int(np.mean([chart['ra'] for chart in charts]))
-        level_achi_list = _rating_to_inner_level(avr_ra).split('/')
-        for i, ele in enumerate(level_achi_list):
-            level_achi_list[i] = re.match("(.+)% (.+)", ele.strip()).groups()
+        # 未到达 SSS+ 的推荐升1评级
+        for chart in charts:
+            if chart['achievements'] < 100.5:
+                for i, aim_achi in enumerate(achie_ranks.values()):
+                    if chart['achievements'] >= aim_achi:
+                        break
+                aim_achi = tuple(achie_ranks.values())[i - 1]
+                ans.append(f"{difficulty_short[chart['level_index']]}{chart['ds']}  {chart['song_id']}  "
+                           f"{chart['title']}  {aim_achi}%  "
+                           f"Rating +{_cal_single_rating(aim_achi, chart['ds']) - chart['ra']}")
+        # 获取平均单曲 rating，计算对应定数达成率
+        level_achi_list = _rating_to_inner_level(charts[-1]['ra'])
         conn = mai_dbpool.connection()
         cursor = conn.cursor()
         for achi, level in level_achi_list:
+            # 固定达成率，提高定数
             if mode == "B25":
                 cursor.execute(f"SELECT CD.InnerLevel,CD.Difficulty,SI.Id,SI.Title FROM ChartDifficulty CD "
-                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {float(level) + 0.1} AND "
-                               f"{float(level) + 0.4} AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion!='舞萌DX 2021'")
+                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {level + 0.2} AND "
+                               f"{level + 0.4} AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion!='舞萌DX 2021'")
             else:
                 cursor.execute(f"SELECT CD.InnerLevel,CD.Difficulty,SI.Id,SI.Title FROM ChartDifficulty CD "
-                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {float(level) + 0.1} AND "
-                               f"{float(level) + 0.4} AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion='舞萌DX 2021'")
-            recom_chart = cursor.fetchall()
-            ans += [f"{chart[0]}  {_get_difficulty_short(chart[1])}  {chart[2]}  {chart[3]}  " \
-                    f"{achi}% Rating+{_cal_single_rating(float(achi), chart[0]) - charts[-1]['ra']}"
-                    for chart in recom_chart if (chart[2], chart[1]) not in inlist_chart]
-        return random.sample(ans, min(3, len(ans)))
+                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {level + 0.2} AND "
+                               f"{level + 0.4} AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion='舞萌DX 2021'")
+            recommend_charts = cursor.fetchall()
+            ans += [f"{_get_difficulty_short(chart[1])}{chart[0]}  {chart[2]}  {chart[3]}  " \
+                    f"{achi}%  Rating +{_cal_single_rating(achi, chart[0]) - charts[-1]['ra']}"
+                    for chart in recommend_charts if (chart[2], chart[1]) not in inlist_chart and achi >= 97]
+            # 固定或降低定数，提高一档达成率
+            if mode == "B25":
+                cursor.execute(f"SELECT CD.InnerLevel,CD.Difficulty,SI.Id,SI.Title FROM ChartDifficulty CD "
+                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {level} AND {level + 0.1} "
+                               f"AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion!='舞萌DX 2021'")
+            else:
+                cursor.execute(f"SELECT CD.InnerLevel,CD.Difficulty,SI.Id,SI.Title FROM ChartDifficulty CD "
+                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {level} AND {level + 0.1} "
+                               f"AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion='舞萌DX 2021'")
+            recommend_charts = cursor.fetchall()
+            if achi < 100.5:
+                for i, aim_achi in enumerate(achie_ranks.values()):
+                    if achi >= aim_achi:
+                        break
+                aim_achi = tuple(achie_ranks.values())[i - 1]
+                for chart in recommend_charts:
+                    if (chart[2], chart[1]) not in inlist_chart:
+                        ans += [f"{_get_difficulty_short(chart[1])}{chart[0]}  {chart[2]}  {chart[3]}  {aim_achi}% "
+                                f" Rating +{_cal_single_rating(aim_achi, chart[0]) - charts[-1]['ra']}"]
+        return random.sample(ans, min(4, len(ans)))
 
     def _cal_single_rating(achi: float, inner_level: float) -> int:
         achi_rank_coef = {"SSS+": 14, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5,
@@ -562,22 +588,21 @@ async def analyze_rating(user_in: str, user_id: int):
     if isinstance(data, str):
         return data, None
     old_list, new_list = data["charts"]["sd"], data["charts"]["dx"]
-    text = f"{data['nickname']} Rating 组成如下：\n" \
+    text = f"{data['nickname']} 的 Rating 组成如下：\n\n" \
            f"B25 Rating 总计为{sum([chart['ra'] for chart in data['charts']['sd']])}\n" \
-           f"最高分{data['charts']['sd'][0]['ra']}，相当于{_rating_to_inner_level(old_list[0]['ra'])}\n" \
-           f"最低分{data['charts']['sd'][24]['ra']}，相当于{_rating_to_inner_level(old_list[24]['ra'])}\n"
-    var_single_rating, var_achie, var_inner_level = np.var([chart['ra'] for chart in old_list]), \
-                                                    np.var([chart['achievements'] for chart in old_list]), \
-                                                    np.var([chart['ds'] for chart in old_list])
-    text += _advice(var_single_rating, var_achie, var_inner_level, old_list)
+           f"最高分{data['charts']['sd'][0]['ra']}，相当于" \
+           f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(old_list[0]['ra'])])}\n" \
+           f"最低分{data['charts']['sd'][-1]['ra']}，相当于" \
+           f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(old_list[-1]['ra'])])}\n"
+    text += _advice(old_list, "B25")
     text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(old_list, "B25")) + "\n\n"
-    text += f"B15 Rating 总计为{sum([chart['ra'] for chart in data['charts']['dx']])}\n" \
-            f"最高分{data['charts']['dx'][0]['ra']}，相当于{_rating_to_inner_level(data['charts']['dx'][0]['ra'])}\n" \
-            f"最低分{data['charts']['dx'][14]['ra']}，相当于{_rating_to_inner_level(data['charts']['dx'][14]['ra'])}\n"
-    var_single_rating, var_achie, var_inner_level = np.var([chart['ra'] for chart in data["charts"]["dx"]]), \
-                                                    np.var([chart['achievements'] for chart in data["charts"]["dx"]]), \
-                                                    np.var([chart['ds'] for chart in data["charts"]["dx"]])
-    text += _advice(var_single_rating, var_achie, var_inner_level, new_list)
+    text += f"B15 Rating 总计为{sum([chart['ra'] for chart in new_list])}\n" \
+            f"最高分{data['charts']['dx'][0]['ra']}，相当于" \
+            f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(new_list[0]['ra'])])}\n" \
+            f"最低分{data['charts']['dx'][-1]['ra']}，相当于" \
+            f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(new_list[-1]['ra'])])}\n"
+    text += _advice(new_list, "B15")
     text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(new_list, "B15")) + "\n\n"
-    text += "Analyzed by LisaBot, developed by Koto(RINkoTO) & Ryan"
+    text += "* 推荐结果为完全随机，LisaBot 不会对您的数据进行指向性推荐。\n" \
+            "Analyzed by LisaBot, function developed by Koto(RINkoTO) & Ryan"
     return None, image_to_base64(text_to_image(text))
