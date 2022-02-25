@@ -340,6 +340,8 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
     regex = f"({'|'.join(version_aliases.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
     # ver = 版本，plate = 牌子（含霸者）
     ver, plate, username = re.match(regex, user_in).groups()
+    if ver == "真" and plate == "将":
+        return "没有真将哦！"
     if plate in ["霸者", "覇者"]:
         ver = "舞"
     payload = {"version": version_aliases[ver][2]}
@@ -351,15 +353,13 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
     if isinstance(data, str):
         return data
     charts = data["verlist"]
-
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
     version_regex = "','".join(version_aliases[ver][1])
     # use ChinaVersion in Table SongInfo
     if ver == '舞':
         cursor.execute(f"SELECT COUNT(DISTINCT SI.Id),COUNT(*) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
-                       f"WHERE SI.ChinaVersion IN ('{version_regex}') AND CD.Version='舞萌DX 2021' "
-                       f"AND SI.Id NOT IN (70,853)")
+                       f"WHERE SI.ChinaVersion IN ('{version_regex}') AND CD.Version='舞萌DX 2021'")
     else:
         cursor.execute(f"SELECT COUNT(DISTINCT SI.Id),COUNT(*) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
                        f"WHERE SI.ChinaVersion IN ('{version_regex}') AND CD.Version='舞萌DX 2021' "
