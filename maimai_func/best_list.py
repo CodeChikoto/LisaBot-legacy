@@ -80,12 +80,13 @@ class BestList():
         if isinstance(data, dict):
             charts, clear = data["verlist"], len(data["verlist"])
             locks_list = []
-            for i in range(4):
+            for i in range(cpu_thread_amount):
                 lock = _thread.allocate_lock()
                 lock.acquire()
                 locks_list.append(lock)
-            for i in range(4):
-                _thread.start_new_thread(_fill_info, (int(clear / 4 * i), int(clear / 4 * (i + 1)), locks_list[i]))
+            for i in range(cpu_thread_amount):
+                _thread.start_new_thread(_fill_info, (int(clear / cpu_thread_amount * i),
+                                                      int(clear / cpu_thread_amount * (i + 1)), locks_list[i]))
             while any(lock.locked() for lock in locks_list):
                 pass
             self.old_list.sort(key=lambda x: x["ra"], reverse=True)
@@ -429,7 +430,7 @@ def set_name_plate(user_in: str, user_id: int) -> str:
         cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")
         conn.commit()
         return "できました！"
-    elif f"{plate_num:06d}.png" in os.listdir("./material/plates/special"):
+    elif f"UI_Plate_{plate_num:06d}.png" in os.listdir("./material/plates/special"):
         if user_id in [993433577, 1826356872, 1873618331]:
             conn = player_dbpool.connection()
             cursor = conn.cursor()

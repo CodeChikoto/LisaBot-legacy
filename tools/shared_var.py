@@ -1,4 +1,5 @@
 import pymysql
+import multiprocessing
 from dbutils.pooled_db import PooledDB
 
 
@@ -103,7 +104,7 @@ combo_ranks = {"AP+": 0, "app": 0, "ap": 1, "AP": 1, "FC+": 2, "fcp": 2, "fc": 3
 combo_ranks_regex = f"({'|'.join(combo_ranks.keys())})"
 combo_ranks_regex = combo_ranks_regex.replace('+', '\+')
 combo_upper = {"fc": "FC", "fcp": "FC+", "ap": "AP", "app": "AP+", "": ""}
-sync_ranks = {"FSD+": 0, "FSD": 1, "FS+": 2, "FS": 3, "": 4}
+sync_ranks = {"FSD+": 0, "fsdp": 0, "FSD": 1, "fsd": 1, "FS+": 2, "fsp": 2, "FS": 3, "fs": 3, "": 4}
 sync_ranks_regex = f"({'|'.join(sync_ranks.keys())})"
 sync_ranks_regex = sync_ranks_regex.replace('+', '\+')
 sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
@@ -125,3 +126,4 @@ quotation_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=5, max
                       maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
                       database="Quotations", charset="utf8")
 mute_list = []
+cpu_thread_amount = max(multiprocessing.cpu_count(), 4)

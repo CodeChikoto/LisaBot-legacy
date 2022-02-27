@@ -225,12 +225,13 @@ async def get_achie_list(user_in: str, user_id: int):
         return data
     ans, locks_list = [], []
     played = len(data["verlist"])
-    for i in range(4):
+    for i in range(cpu_thread_amount):
         lock = allocate_lock()
         lock.acquire()
         locks_list.append(lock)
         # for i in range(4):
-        start_new_thread(_find_level_achi, (int(played / 4 * i), int(played / 4 * (i + 1)), locks_list[i]))
+        start_new_thread(_find_level_achi, (int(played / cpu_thread_amount * i),
+                                            int(played / cpu_thread_amount * (i + 1)), locks_list[i]))
     while any(lock.locked() for lock in locks_list):
         pass
     total_pages = ceil(len(ans) / 25)
@@ -256,10 +257,11 @@ async def get_achie_list(user_in: str, user_id: int):
 
 
 async def get_level_process(user_in: str, user_id: int):
-    regex = "进度 ([0-9]+\+?)\s?" + combo_ranks_regex + "?\s?" + achie_ranks_regex + "?\s?(.+)?"
-    [level, combo, rank, username] = re.match(regex, user_in.upper()).groups()
-    if not rank and not combo:
-        return "何が知ったい？"
+    regex = "^进度 ([0-9]+\+?) " + achie_ranks_regex + "?\s?" + combo_ranks_regex + "?\s?"  \
+            + sync_ranks_regex + "?\s?(.+)?"
+    [level, achi_rank, combo, sync, username] = re.match(regex, user_in.upper()).groups()
+    if not achi_rank and not combo:
+        return "何が知りたい？"
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT COUNT(*) FROM ChartDifficulty WHERE Level='{level}' AND Version='舞萌DX 2021'")
@@ -276,34 +278,36 @@ async def get_level_process(user_in: str, user_id: int):
     locks_list = []
 
     def _check_each(start: int, end: int, lock):
-        nonlocal rank, combo, count
-        if rank and combo:
+        nonlocal achi_rank, combo, count
+        if achi_rank and (combo or sync):
             for chart in data["verlist"][start:end]:
-                if chart["level"] == level and chart["achievements"] >= achie_ranks[rank] \
-                        and combo_ranks[chart["fc"]] <= combo_ranks[combo]:
+                if chart["level"] == level and chart["achievements"] >= achie_ranks[achi_rank] and \
+                        combo_ranks[chart["fc"]] <= combo_ranks[combo] and sync_ranks[chart["fs"]] <= sync_ranks[sync]:
                     count += 1
-        elif rank:
+        elif achi_rank:
             for chart in data["verlist"][start:end]:
-                if chart["level"] == level and chart["achievements"] >= achie_ranks[rank]:
+                if chart["level"] == level and chart["achievements"] >= achie_ranks[achi_rank]:
                     count += 1
             combo = ""
-        elif combo:
+        elif combo or sync:
             for chart in data["verlist"][start:end]:
-                if chart["level"] == level and combo_ranks[chart["fc"]] <= combo_ranks[combo]:
+                if chart["level"] == level and combo_ranks[chart["fc"]] <= combo_ranks[combo] and \
+                        sync_ranks[chart["fs"]] <= sync_ranks[sync]:
                     count += 1
-            rank = ""
+            achi_rank = ""
         lock.release()
 
     played = len(data["verlist"])
-    for i in range(4):
+    for i in range(cpu_thread_amount):
         lock = allocate_lock()
         lock.acquire()
         locks_list.append(lock)
         # for i in range(4):
-        start_new_thread(_check_each, (int(played / 4 * i), int(played / 4 * (i + 1)), locks_list[i]))
+        start_new_thread(_check_each, (int(played / cpu_thread_amount * i),
+                                       int(played / cpu_thread_amount * (i + 1)), locks_list[i]))
     while any(lock.locked() for lock in locks_list):
         pass
-    msg = f"你的等级 {level} {rank} {combo} 完成进度{count}/{total}\n"
+    msg = f"你的等级 {level} {achi_rank} {combo} {sync} 完成进度{count}/{total}\n"
     msg += f"まだ{total - count}残ります〜" if total != count else "できましたおめでとう！"
     return msg
 
@@ -313,24 +317,21 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
         nonlocal charts, finished_amount, unfinished_chart
         if plate_require[plate] in achie_ranks.keys():
             for chart in charts[start:end]:
-                if (chart["id"] not in [70, 853] and chart["level_index"] != 4) or \
-                        (chart["level_index"] == 4 and ver == '舞'):
+                if (chart["id"] != 853 and ver == '舞') or (chart["id"] not in [70, 853] and chart["level_index"] != 4):
                     if chart["achievements"] >= achie_ranks[plate_require[plate]]:
                         finished_amount[chart["level_index"]] += 1
                     elif len(unfinished_chart) < 5:
                         unfinished_chart.append(chart)
         elif plate_require[plate] in combo_ranks.keys():
             for chart in charts[start:end]:
-                if (chart["id"] not in [70, 853] and chart["level_index"] != 4) or \
-                        (chart["level_index"] == 4 and ver == '舞'):
+                if (chart["id"] != 853 and ver == '舞') or (chart["id"] not in [70, 853] and chart["level_index"] != 4):
                     if combo_ranks[combo_upper[chart["fc"]]] <= combo_ranks[plate_require[plate]]:
                         finished_amount[chart["level_index"]] += 1
                     elif len(unfinished_chart) < 5:
                         unfinished_chart.append(chart)
         elif plate_require[plate] in sync_ranks.keys():
             for chart in charts[start:end]:
-                if (chart["id"] not in [70, 853] and chart["level_index"] != 4) or \
-                        (chart["level_index"] == 4 and ver == '舞'):
+                if (chart["id"] != 853 and ver == '舞') or (chart["id"] not in [70, 853] and chart["level_index"] != 4):
                     if sync_ranks[sync_upper[chart["fs"]]] <= sync_ranks[plate_require[plate]]:
                         finished_amount[chart["level_index"]] += 1
                     elif len(unfinished_chart) < 5:
@@ -359,7 +360,7 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
     # use ChinaVersion in Table SongInfo
     if ver == '舞':
         cursor.execute(f"SELECT COUNT(DISTINCT SI.Id),COUNT(*) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
-                       f"WHERE SI.ChinaVersion IN ('{version_regex}') AND CD.Version='舞萌DX 2021'")
+                       f"WHERE SI.ChinaVersion IN ('{version_regex}') AND CD.Version='舞萌DX 2021' AND SI.Id!=853")
     else:
         cursor.execute(f"SELECT COUNT(DISTINCT SI.Id),COUNT(*) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
                        f"WHERE SI.ChinaVersion IN ('{version_regex}') AND CD.Version='舞萌DX 2021' "
@@ -368,16 +369,17 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
     conn.close()
 
     # find finished charts
-    locks_list, played, finished_amount, unfinished_chart = [allocate_lock() for _ in range(4)], len(charts), \
-                                                            [0, 0, 0, 0, 0], []
-    for i in range(4):
+    locks_list, played, finished_amount, unfinished_chart = [allocate_lock() for _ in range(cpu_thread_amount)], \
+                                                            len(charts), [0, 0, 0, 0, 0], []
+    for i in range(cpu_thread_amount):
         locks_list[i].acquire()
         # for i in range(4):
-        start_new_thread(_find_finished, (int(played / 4 * i), int(played / 4 * (i + 1)), locks_list[i], plate))
+        start_new_thread(_find_finished, (int(played / cpu_thread_amount * i),
+                                          int(played / cpu_thread_amount * (i + 1)), locks_list[i], plate))
     while any(lock.locked() for lock in locks_list):
         pass
 
-    text = f"{plate}的要求是{plate_require[plate]}\n" \
+    text = f"{plate}的要求是 {plate_require[plate]}\n" \
            f"你的{ver}{plate}完成情况如下：\n"
     if sum(finished_amount) == chart_amount:
         text += f"不剩！できました、おめでとう！"
@@ -392,9 +394,9 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
             text += f"Re:Master  {chart_amount - 4 * song_amount - finished_amount[4]}/" \
                     f"{chart_amount - 4 * song_amount}\n"
         if len(unfinished_chart) < 5:
+            text += f"已游玩但未达成谱面如下：\n"
             for chart in unfinished_chart:
-                text += f"剩余谱面如下：\n" \
-                        f"{difficulty_short[chart['level_index']]}  {chart['id']}  {chart['title']}\n"
+                text += f"{difficulty_short[chart['level_index']]}  {chart['id']}  {chart['title']}\n"
         text += f"拼机最快需要{ceil((chart_amount - sum(finished_amount)) / 4)}局"
         text += f"，单刷最快需要{ceil((chart_amount - sum(finished_amount)) / 3)}局\n" if plate != "舞舞" else "\n"
         text += "頑張ってね！"

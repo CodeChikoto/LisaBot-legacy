@@ -168,7 +168,8 @@ def select_song(user_in: str):
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
-    cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,Cover,ImageExt FROM SongInfo WHERE Id={id}")
+    cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion,"
+                   f"Cover,ImageExt FROM SongInfo WHERE Id={id}")
     res = cursor.fetchone()
     if not res:
         return "好像没有这首歌", ""
@@ -179,13 +180,14 @@ ID: {res[0]}
 BPM: {res[3]}
 谱面类型：{res[4]}
 分类：{res[5]}
-收录版本：{res[6]}
+日服版本：{res[6]}
+国服版本：{res[7]}
 等级："""
-    if res[7]:
-        with open(f"./cache/{res[0]}{res[8]}", "wb") as cover:
-            cover.write(res[7])
+    if res[8]:
+        with open(f"./cache/{res[0]}{res[9]}", "wb") as cover:
+            cover.write(res[8])
         cover.close()
-    img_path = f"file://{os.getcwd()}/cache/{res[0]}{res[8]}" if res[7] else ""
+    img_path = f"file://{os.getcwd()}/cache/{res[0]}{res[9]}" if res[8] else ""
     cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty WHERE Id={id} AND Version LIKE '%{version}%'"
                    "ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
     res = cursor.fetchall()
