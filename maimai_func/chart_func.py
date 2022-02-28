@@ -260,7 +260,7 @@ async def get_level_process(user_in: str, user_id: int):
     regex = "^进度 ([0-9]+\+?) " + achie_ranks_regex + "?\s?" + combo_ranks_regex + "?\s?"  \
             + sync_ranks_regex + "?\s?(.+)?"
     [level, achi_rank, combo, sync, username] = re.match(regex, user_in.upper()).groups()
-    if not achi_rank and not combo:
+    if not achi_rank and not combo and not sync:
         return "何が知りたい？"
     conn = mai_dbpool.connection()
     cursor = conn.cursor()

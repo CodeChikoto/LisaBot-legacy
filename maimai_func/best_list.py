@@ -76,6 +76,7 @@ class BestList():
             single_rating = int(achi / 100 * achi_rank_coef[achi_rank] * float(inner_level))
             return single_rating, achi_rank.lower().replace('+', 'p')
 
+        self.old_list, self.new_list = [], []
         data = await get_player_data(self.payload, "plate")
         if isinstance(data, dict):
             charts, clear = data["verlist"], len(data["verlist"])
@@ -458,25 +459,27 @@ async def analyze_rating(user_in: str, user_id: int):
     # return [(achievement, inner_level), ]
     def _rating_to_inner_level(single_rating: int) -> list:
         ans = []
-        achi_rank_coef = {"SSS+": 14.0, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5, "AAA": 10.5}
+        achi_rank_coef = {"SSS+": 14.0, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5, "AAA": 10.5,
+                          "AA": 9.5, "A": 8.5, "BBB": 7.5, "BB": 7.0, "B": 6.0, "C": 5.0}
+        inner_level_list = [1.0, 2.0, 3.0, 4.0, 5.0, 5.4, 5.6, 5.8]
         for achi_rank_trial in achi_rank_coef.keys():
             inner_level_trial = round(float(single_rating / achi_rank_coef[achi_rank_trial]
                                             / achie_ranks[achi_rank_trial] * 100), 1)
-            if 1.0 <= inner_level_trial <= 15.0:
-                single_rating_trial = int(inner_level_trial * achi_rank_coef[achi_rank_trial]
-                                          * achie_ranks[achi_rank_trial] / 100)
-                if single_rating_trial == single_rating:
-                    ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial, 1)))
-                elif single_rating_trial > single_rating and \
-                        int((inner_level_trial - 0.1) * achi_rank_coef[achi_rank_trial]
-                            * achie_ranks[achi_rank_trial] / 100) == single_rating:
-                    if 1.0 <= inner_level_trial - 0.1 <= 15.0:
-                        ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial - 0.1)))
-                elif single_rating_trial < single_rating and \
-                        int((inner_level_trial + 0.1) * achi_rank_coef[achi_rank_trial]
-                            * achie_ranks[achi_rank_trial] / 100) == single_rating:
-                    if 1.0 <= inner_level_trial + 0.1 <= 15.0:
-                        ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial + 0.1, 1)))
+            single_rating_trial = int(inner_level_trial * achi_rank_coef[achi_rank_trial]
+                                      * achie_ranks[achi_rank_trial] / 100)
+            if single_rating_trial == single_rating and \
+                    (6.0 <= inner_level_trial <= 15.0 or inner_level_trial in inner_level_list):
+                ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial, 1)))
+            elif single_rating_trial > single_rating and \
+                    (6.0 <= inner_level_trial <= 15.0 or inner_level_trial - 0.1 in inner_level_list) and \
+                    int((inner_level_trial - 0.1) * achi_rank_coef[achi_rank_trial]
+                        * achie_ranks[achi_rank_trial] / 100) == single_rating:
+                ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial - 0.1)))
+            elif single_rating_trial < single_rating and \
+                    (6.0 <= inner_level_trial <= 15.0 or inner_level_trial + 0.1 in inner_level_list) and \
+                    int((inner_level_trial + 0.1) * achi_rank_coef[achi_rank_trial]
+                        * achie_ranks[achi_rank_trial] / 100) == single_rating:
+                ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial + 0.1, 1)))
         return ans
 
     def _advice(charts: list, mode: str) -> str:
@@ -488,31 +491,35 @@ async def analyze_rating(user_in: str, user_id: int):
         # 单曲 rating 方差
         if var_single_rating <= (10 if mode == "B25" else 13):
             # 定数方差
-            if var_inner_level <= (0.8 if mode == "B25" else 1.1):
+            if var_inner_level <= (0.9 if mode == "B25" else 1.2):
                 # 达成率总体高低
-                if any([chart['achievements'] < 100 for chart in charts]):
+                if all(chart['achievements'] < 100 for chart in charts):
+                    return "好像都没有 SSS 加，先往上推推吧？\n"
+                elif len([chart for chart in charts if chart['achievements'] < 100]) * 4 >= \
+                        len([chart for chart in charts if chart['achievements'] >= 100]):
                     return "可以把没有 SSS 以上的推一推？\n"
-                elif all([chart['achievements'] >= 100 for chart in charts]) and \
-                        any([chart['achievements'] < 100.5 for chart in charts]):
+                elif len([chart for chart in charts if chart['achievements'] < 100.5]) * 4 >= \
+                        len([chart for chart in charts if chart['achievements'] >= 100.5]):
                     return "可以把没有 SSS+ 以上的推一推？\n"
                 else:
                     return "可以越级试试高一点定数的谱面～\n"
             else:
-                if any([chart['achievements'] < 100.5 for chart in charts]):
-                    return "试试把高定数没有 SSS+ 的推一推？\n"
-                else:
+                if all(chart['achievements'] < 100.5 for chart in charts):
                     return "把全部谱面达成率推一推？\n"
+                else:
+                    return "把没有 SSS+ 的谱面推一推？\n"
         else:
-            if var_achie <= (2 if mode == "B25" else 2.3):
-                if all([chart['achievements'] >= 100.5 for chart in charts]):
-                    return "试试高一点定数的谱面提高下界吧？\n"
-                elif all([chart['achievements'] >= 100 for chart in charts]) and \
-                        any([chart['achievements'] < 100.5 for chart in charts]):
+            if var_achie <= (1.4 if mode == "B25" else 1.9):
+                if len([chart for chart in charts if chart['achievements'] < 100.5]) * 4 < \
+                        len([chart for chart in charts if chart['achievements'] >= 100.5]):
+                    return "试试打高一点定数的谱面提高下界？\n"
+                elif len([chart for chart in charts if chart['achievements'] < 100.5]) * 4 >= \
+                        len([chart for chart in charts if chart['achievements'] >= 100.5]):
                     return "试试把没有 SSS+ 的谱面都推一推？\n"
                 else:
-                    return "试试全部达成率推一推？\n"
+                    return "试试全部谱面达成率推一推？\n"
             else:
-                if var_inner_level >= (1.3 if mode == "B25" else 1.5):
+                if var_inner_level >= (1.2 if mode == "B25" else 1.5):
                     return "可以试试靠后的谱面提高达成率\n"
                 else:
                     return "没有 SSS+ 的都可以试试推一推\n"
@@ -548,16 +555,16 @@ async def analyze_rating(user_in: str, user_id: int):
             recommend_charts = cursor.fetchall()
             ans += [f"{_get_difficulty_short(chart[1])}{chart[0]}  {chart[2]}  {chart[3]}  " \
                     f"{achi}%  Rating +{_cal_single_rating(achi, chart[0]) - charts[-1]['ra']}"
-                    for chart in recommend_charts if (chart[2], chart[1]) not in inlist_chart and achi >= 97]
+                    for chart in recommend_charts if (chart[2], chart[1]) not in inlist_chart if achi >= 97]
             # 固定或降低定数，提高一档达成率
             if mode == "B25":
                 cursor.execute(f"SELECT CD.InnerLevel,CD.Difficulty,SI.Id,SI.Title FROM ChartDifficulty CD "
-                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {level} AND {level + 0.1} "
-                               f"AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion!='舞萌DX 2021'")
+                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {level - 0.1} AND "
+                               f"{level + 0.1} AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion!='舞萌DX 2021'")
             else:
                 cursor.execute(f"SELECT CD.InnerLevel,CD.Difficulty,SI.Id,SI.Title FROM ChartDifficulty CD "
-                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {level} AND {level + 0.1} "
-                               f"AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion='舞萌DX 2021'")
+                               f"JOIN SongInfo SI ON CD.Id=SI.Id WHERE CD.InnerLevel BETWEEN {level - 0.1} AND "
+                               f"{level + 0.1} AND CD.Version='舞萌DX 2021' AND SI.ChinaVersion='舞萌DX 2021'")
             recommend_charts = cursor.fetchall()
             if achi < 100.5:
                 for i, aim_achi in enumerate(achie_ranks.values()):
@@ -589,21 +596,23 @@ async def analyze_rating(user_in: str, user_id: int):
     if isinstance(data, str):
         return data, None
     old_list, new_list = data["charts"]["sd"], data["charts"]["dx"]
-    text = f"{data['nickname']} 的 Rating 组成如下：\n\n" \
-           f"B25 Rating 总计为{sum([chart['ra'] for chart in data['charts']['sd']])}\n" \
-           f"最高分{data['charts']['sd'][0]['ra']}，相当于" \
-           f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(old_list[0]['ra'])])}\n" \
-           f"最低分{data['charts']['sd'][-1]['ra']}，相当于" \
-           f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(old_list[-1]['ra'])])}\n"
-    text += _advice(old_list, "B25")
-    text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(old_list, "B25")) + "\n\n"
-    text += f"B15 Rating 总计为{sum([chart['ra'] for chart in new_list])}\n" \
-            f"最高分{data['charts']['dx'][0]['ra']}，相当于" \
-            f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(new_list[0]['ra'])])}\n" \
-            f"最低分{data['charts']['dx'][-1]['ra']}，相当于" \
-            f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(new_list[-1]['ra'])])}\n"
-    text += _advice(new_list, "B15")
-    text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(new_list, "B15")) + "\n\n"
+    text = f"{data['nickname']} 的 Rating 组成如下：\n\n"
+    if old_list:
+        text += f"B25 Rating 总计为{sum([chart['ra'] for chart in old_list])}\n" \
+                f"最高分{data['charts']['sd'][0]['ra']}，相当于" \
+                f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(old_list[0]['ra'])])}\n" \
+                f"最低分{data['charts']['sd'][-1]['ra']}，相当于" \
+                f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(old_list[-1]['ra'])])}\n"
+        text += _advice(old_list, "B25")
+        text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(old_list, "B25")) + "\n\n"
+    if new_list:
+        text += f"B15 Rating 总计为{sum([chart['ra'] for chart in new_list])}\n" \
+                f"最高分{data['charts']['dx'][0]['ra']}，相当于" \
+                f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(new_list[0]['ra'])])}\n" \
+                f"最低分{data['charts']['dx'][-1]['ra']}，相当于" \
+                f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(new_list[-1]['ra'])])}\n"
+        text += _advice(new_list, "B15")
+        text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(new_list, "B15")) + "\n\n"
     text += "* 推荐结果为完全随机，LisaBot 不会对您的数据进行指向性推荐。\n" \
             "Analyzed by LisaBot, function developed by Koto(RINkoTO) & Ryan"
     return None, image_to_base64(text_to_image(text))
