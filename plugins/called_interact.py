@@ -1,46 +1,58 @@
-import time
+import nonebot.matcher
 from nonebot import *
 from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 from interact_func.select import *
 from tools.image import *
-from tools.shared_var import mute_list
 from interact_func.emoji import *
+
+
+def _update_blacklist():
+    global blacklist
+    conn = player_dbpool.connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT QQId FROM Blacklist")
+    blacklist = [int(ans[0]) for ans in cursor.fetchall()]
+    blacklist_updater.enter(8640, 0, _update_blacklist, ())
+
 
 bot_nick = ["lisa", "妈妈", "リサ"]
 bot_nick_regex = f"^({'|'.join(bot_nick)})"
 act = ["亲亲", "抱抱", "贴贴"]
 random.seed(time.time())
+blacklist_updater = scheduler(time.time, time.sleep)
+blacklist_updater.enter(0, 0, _update_blacklist, ())
+start_new_thread(blacklist_updater.run, ())
+blacklist = []
 
 
 async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
-    return True if event.user_id == 993433577 else False
+    return event.user_id == 993433577
 
 
-help_menu = on_regex(bot_nick_regex + " (help|帮助)", block=True)
-select = on_regex(bot_nick_regex + " .+(or|还是|或者).+", block=True)
+async def _in_blacklist(bot: Bot, event: Event, state: dict) -> bool:
+    values = event.user_id in blacklist
+    return event.user_id in blacklist
+
+
+help_menu = on_regex(bot_nick_regex + " (help|帮助)", priority=2, block=True)
+select = on_regex(bot_nick_regex + " .+(or|还是|或者).+", priority=2, block=True)
 mute_mode = on_regex(bot_nick_regex + " (烟人|禁言)", block=True)
-bully = on_regex(bot_nick_regex + " .+欺负我")
-huge = on_regex(bot_nick_regex + f" ({'|'.join(act)})")
+bully = on_regex(bot_nick_regex + " .+欺负我", priority=2)
+huge = on_regex(bot_nick_regex + f" ({'|'.join(act)})", priority=2)
 boom_leave = on_regex(bot_nick_regex + f" (退群|爆炸)", rule=_from_koto)
+manage_blacklist = on_regex(bot_nick_regex + f" (移除|移出|添加|增加|加入)黑名单 ([0-9]+)")
+ignore = on_message(rule=_in_blacklist, priority=1, block=True)
 
 
 @help_menu.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    file_list = [open("text/help_maimai", "r"), open("text/help_interact", "r")]
-    img_list = [image_to_base64(text_to_image(file.read())) for file in file_list]
     await help_menu.finish(Message([{
         "type": "image",
         "data": {
-            "file": f"base64://{str(img_list[0], encoding='utf-8')}"
+            "file": f"base64://{str(image_to_base64(text_to_image(open('text/help', 'r').read())), encoding='utf-8')}"
         }
     },
-        {
-        "type": "image",
-        "data": {
-            "file": f"base64://{str(img_list[1], encoding='utf-8')}"
-        }
-    }
     ]))
 
 
@@ -143,3 +155,48 @@ async def _(bot: Bot, event: Event, state: T_State):
         await bot.set_group_kick(group_id=event.group_id, user_id=993433577)
     finally:
         await bot.set_group_leave(group_id=event.group_id)
+
+
+@manage_blacklist.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    if event.user_id not in [993433577]:
+        await manage_blacklist.finish(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": "ごめん？？？？"}
+            }
+        ]))
+    regex = bot_nick_regex + f" (移除|移出|添加|增加|加入)黑名单 ([0-9]+)"
+    _, op, aim_id = re.match(regex, str(event.get_message())).groups()
+    aim_id = int(aim_id)
+    conn = player_dbpool.connection()
+    cursor = conn.cursor()
+    if op in ["移除", "移出"]:
+        cursor.execute(f"DELETE FROM Blacklist WHERE QQId={aim_id}")
+        if aim_id in blacklist:
+            blacklist.remove(aim_id)
+    else:
+        cursor.execute(f"INSERT IGNORE Blacklist VALUES ({aim_id})")
+        if aim_id not in blacklist:
+            blacklist.append(aim_id)
+    conn.commit()
+    await manage_blacklist.finish(Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": "はい！"}
+        }
+    ]))
+
+
+@ignore.handle()
+async def _(bot: Bot, event: Event, state: T_State, matcher: nonebot.matcher.Matcher):
+    matcher.stop_propagation()
+    await ignore.finish()

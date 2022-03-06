@@ -184,9 +184,9 @@ BPM: {res[3]}
 国服版本：{res[7]}
 等级："""
     if res[8]:
-        with open(f"./cache/{res[0]}{res[9]}", "wb") as cover:
-            cover.write(res[8])
-        cover.close()
+        with open(f"./cache/{res[0]}{res[9]}", "wb") as cover_file:
+            cover_file.write(res[8])
+        cover_file.close()
     img_path = f"file://{os.getcwd()}/cache/{res[0]}{res[9]}" if res[8] else ""
     cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty WHERE Id={id} AND Version LIKE '%{version}%'"
                    "ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")

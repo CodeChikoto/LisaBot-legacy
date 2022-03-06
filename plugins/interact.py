@@ -8,14 +8,12 @@ from tools.shared_var import *
 
 
 async def _bot_poked(bot: Bot, event: Event, state: dict) -> bool:
-    return (event.notice_type == "notify" and event.sub_type == "poke" and
-            event.target_id == int(bot.self_id))
+    return event.notice_type == "notify" and event.sub_type == "poke" and event.target_id == int(bot.self_id)
 
 
 async def _mute_poke(bot: Bot, event: Event, state: dict) -> bool:
-    return (event.notice_type == "notify" and event.sub_type == "poke" and
-            event.user_id == 993433577 and event.target_id != 993433577 and
-            event.group_id in mute_list)
+    return event.notice_type == "notify" and event.sub_type == "poke" and event.user_id == 993433577 and \
+           event.target_id != 993433577 and event.group_id in mute_list
 
 
 async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
@@ -27,24 +25,24 @@ async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
 
 
 async def _koto_muted(bot: Bot, event: Event, state: dict) -> bool:
-    return (event.notice_type == "group_ban" and event.user_id == 993433577 and event.duration)
+    return event.notice_type == "group_ban" and event.user_id == 993433577 and event.duration
 
 
 async def _bot_muted(bot: Bot, event: Event, state: dict) -> bool:
-    return (event.notice_type == "group_ban" and event.user_id == int(bot.self_id) and event.duration)
+    return event.notice_type == "group_ban" and event.user_id == int(bot.self_id) and event.duration
+
 
 
 random.seed(time.time())
-# {group_id: last_message, count, has_repeated}
+# {group_id: last_message, count}
 msg_record = {}
-in_song_guess = False
 id, title, img_path, koto_last = None, None, None, None
 
-poke_back = on_notice(rule=_bot_poked, block=True)
-repeat = on_message(priority=2)
-is_online = on_regex(r"^(琴|琴琴|机修)在线(么|吗)(？|)", block=True)
+poke_back = on_notice(rule=_bot_poked, priority=2, block=True)
+repeat = on_message(priority=3)
+is_online = on_regex(r"^(琴|琴琴|机修)在线(么|吗)(？|)", priority=2, block=True)
 poke_mute = on_notice(rule=_mute_poke)
-today_luck = on_command("today_luck", aliases={"今日运势"}, block=True)
+today_luck = on_command("today_luck", aliases={"今日运势"}, priority=2, block=True)
 public_notice = on_command(rule=_from_koto, cmd="/public ", aliases={"/广播 ", "/公告 "}, block=True)
 unmute_koto = on_notice(rule=_koto_muted)
 remind_bot_muted = on_notice(rule=_bot_muted)

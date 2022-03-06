@@ -1,7 +1,9 @@
+from _thread import start_new_thread
+from sched import scheduler
 import pymysql
 import multiprocessing
 from dbutils.pooled_db import PooledDB
-
+import time
 
 difficulty_alias = {
     "bas": "Basic",
@@ -24,8 +26,10 @@ difficulty_alias = {
     "白": "Re:MASTER",
     "re:master": "Re:MASTER",
     "remaster": "Re:MASTER",
-    "": ""}
+    "": ""
+}
 difficulty_short = ["BSC", "ADV", "EXP", "MST", "REM"]
+difficulty_file = {"Basic": "BSC", "Advanced": "ADV", "Expert": "EXP", "Master": "MST", "Re:MASTER": "MST_Re"}
 chart_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")([0-9]+)"
 difficulty_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")"
 
@@ -79,7 +83,6 @@ ver_num_list = {
     "華": 109101,
     "爽": 159101
 }
-
 plate_require = {
     "极": "FC",
     "極": "FC",
@@ -109,21 +112,15 @@ sync_ranks_regex = f"({'|'.join(sync_ranks.keys())})"
 sync_ranks_regex = sync_ranks_regex.replace('+', '\+')
 sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
 
-new_id_list = [10021, 10181, 10188, 10690, 11032, 11089, 11090, 11091, 11092, 11097, 11098, 11099, 11100, 11101,
-               11102, 11103, 11105, 11107, 11108, 11109, 11110, 11111, 11113, 11114, 11115, 11125, 11126, 11127,
-               11128, 11129, 11130, 11131, 11132, 11133, 11135, 11136, 11137, 11138, 11139, 11141, 11142, 11143,
-               11146, 11147, 11148, 11149, 11150, 11152, 11153, 11154, 11155, 11157, 11158, 11159, 11160, 11161,
-               11162, 11163, 11164, 11168, 11171, 11175, 11176, 11177, 11178, 11179, 11180, 11184, 11185, 11186,
-               11187, 11188, 11189, 11190, 11191, 11192, 11193, 11194, 11195, 11198, 11199, 11200, 11206, 11210,
-               11211, 11212, 11213, 11214, 11215, 11216, 11217, 11221]
 mai_dbpool = PooledDB(creator=pymysql, maxconnections=240, mincached=5, maxcached=None, blocking=True,
                       maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
                       database="maimai", charset="utf8")
-player_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=2, maxcached=None, blocking=True,
-                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
-                      database="Player", charset="utf8")
+player_dbpool = PooledDB(creator=pymysql, maxconnections=20, mincached=2, maxcached=None, blocking=True,
+                         maxusage=None, ping=5, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
+                         database="Player", charset="utf8")
 quotation_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=3, maxcached=None, blocking=True,
-                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
-                      database="Quotations", charset="utf8")
+                            maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone",
+                            password="UnpublicData",
+                            database="Quotations", charset="utf8")
 mute_list = []
 cpu_thread_amount = max(multiprocessing.cpu_count(), 4)

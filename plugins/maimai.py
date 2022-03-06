@@ -7,36 +7,39 @@ from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 from tools.shared_var import *
 
-inner_level_search = on_regex("^定数查歌 " + difficulty_regex + "?([0-9]+\.[0-9])\s?([0-9]+)?")
-level_search = on_regex("^等级查歌 " + difficulty_regex + "?([0-9]+\+?)\s?([0-9]+)?")
-name_search = on_regex("^(search|查歌|搜索) (.+)$", block=True)
-artist_search = on_regex("^(曲师|艺术家|歌手)查歌 (.+)", block=True)
-view_song = on_regex("^id ([0-9]+)\s?(.+)?", block=True)
-view_chart = on_regex("^(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?", block=True)
-mai_what = on_regex(r".*mai\s?什么", block=True)
-which_is = on_regex("^(.+)是什么歌\s?([0-9]+)?$", block=True)
+inner_level_search = on_regex("^定数查歌 " + difficulty_regex + "?([0-9]+\.[0-9])\s?([0-9]+)?", priority=2, block=True)
+level_search = on_regex("^等级查歌 " + difficulty_regex + "?([0-9]+\+?)\s?([0-9]+)?", priority=2, block=True)
+name_search = on_regex("^(search|查歌|搜索) (.+)$", priority=2, block=True)
+artist_search = on_regex("^(曲师|艺术家|歌手)查歌 (.+)", priority=2, block=True)
+view_song = on_regex("^id ([0-9]+)\s?(.+)?", priority=2, block=True)
+view_chart = on_regex("^(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?", priority=2, block=True)
+mai_what = on_regex(r".*mai\s?什么", priority=2, block=True)
+which_is = on_regex("^(.+)是什么歌\s?([0-9]+)?$", priority=2, block=True)
 achie_range = on_regex(f"^达成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                        r"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
-                       r"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", block=True)
+                       r"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", priority=2, block=True)
 break_dist = on_regex(f"^绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
                       f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
-                      f"([0-9]+),([0-9]+),([0-9]+),([0-9]+) ([0-9]+.[0-9]+)", block=True)
-inner_level_random_song = on_regex("^随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])")
-level_random_song = on_regex("^随歌 " + difficulty_regex + "\s?([0-9]+\+?)$")
-random_song = on_regex("^随歌" + difficulty_regex + "\s?([0-9]+\.[0-9])?([0-9]+\+?)?")
-try_random_chart = on_regex(r"^我要大战(.+)", block=True)
-best_list_pic = on_regex(r"^(b|B)(4|5)0\s?(.+)?")
-add_alias = on_regex("^增加别名 ([0-9]+) (.+)", block=True)
+                      f"([0-9]+),([0-9]+),([0-9]+),([0-9]+) ([0-9]+.[0-9]+)", priority=2, block=True)
+inner_level_random_song = on_regex("^随歌 " + difficulty_regex + "\s?([0-9]+\.[0-9])", priority=2, block=True)
+level_random_song = on_regex("^随歌 " + difficulty_regex + "\s?([0-9]+\+?)$", priority=2, block=True)
+random_song = on_regex("^随歌" + difficulty_regex + "\s?([0-9]+\.[0-9])?([0-9]+\+?)?", priority=2, block=True)
+try_random_chart = on_regex(r"^我要大战(.+)", priority=2, block=True)
+best_list_pic = on_regex(r"^(b|B)(4|5)0\s?(.+)?", priority=2, block=True)
+add_alias = on_regex("^增加别名 ([0-9]+) (.+)", priority=2, block=True)
 achie_list = on_regex(r"^(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
 level_process = on_regex("^进度 ([0-9]+\+?) " + achie_ranks_regex + "?\s?" + combo_ranks_regex + "?\s?"
-                         + sync_ranks_regex + "?\s?(.+)?")
-plate_process = on_regex(f"^({'|'.join(version_aliases.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?")
-plate_list = on_command("plate_list", aliases={"牌子条件", "牌子列表"})
-view_name_plate = on_command("view_plates_list", aliases={"查看名牌板", "查看姓名框"})
-custom_name_plate = on_regex("^设置姓名框 ([0-9]+)")
-notes_search = on_regex("^物量查歌 ([0-9]+)\s?([0-9]+)?")
-bpm_search = on_regex("^(BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?")
-rating_analyzation = on_regex("^(底分|Ra|Rating)分析")
+                         + sync_ranks_regex + "?\s?(.+)?", priority=2, block=True)
+plate_process = on_regex(f"^({'|'.join(version_aliases.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
+                         , priority=2)
+plate_list = on_command("plate_list", aliases={"牌子条件", "牌子列表"}, priority=2, block=True)
+view_name_plate = on_command("view_plates_list", aliases={"查看名牌板", "查看姓名框"}, priority=2, block=True)
+custom_name_plate = on_regex("^设置姓名框 ([0-9]+)", priority=2, block=True)
+notes_search = on_regex("^物量查歌 ([0-9]+)\s?([0-9]+)?", priority=2, block=True)
+bpm_search = on_regex("^(BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?", priority=2, block=True)
+rating_analyzation = on_regex("^(底分|Ra|Rating)分析", priority=2, block=True)
+achi_line = on_regex("^(达成率|分数)线 " + difficulty_regex + "([0-9]+)\s?(0\+|100|101\-)?\s?(.+)?",
+                     priority=2, block=True)
 
 
 @inner_level_search.handle()
@@ -529,5 +532,32 @@ async def _(bot: Bot, event: Event, state: T_State):
             {
                 "type": "text",
                 "data": {"text": error}
+            }
+        ]))
+
+
+@achi_line.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    img, text = get_achi_line(str(event.get_message()))
+    if text:
+        await achi_line.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": text}
+            }
+        ]))
+    else:
+        await achi_line.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "image",
+                "data": {"file": f"base64://{img}"}
             }
         ]))

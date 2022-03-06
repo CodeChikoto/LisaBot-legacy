@@ -101,8 +101,6 @@ class BestList():
             return False
 
     def draw_list(self):
-        difficulty_file = {"Basic": "BSC", "Advanced": "ADV", "Expert": "EXP", "Master": "MST",
-                           "Re:MASTER": "MST_Re"}
         combo_sync_file = {"fcp": "FCp", "fc": "FC", "ap": "AP", "app": "APp",
                            "fs": "FS", "fsp": "FSp", "fsd": "FSD", "fsdp": "FSDp"}
         achi_rank_file = {"sssp": "SSSp", "sss": "SSS", "ssp": "SSp", "ss": "SS", "sp": "Sp", "s": "S",
