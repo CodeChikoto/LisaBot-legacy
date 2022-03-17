@@ -9,9 +9,9 @@ def auto_select(user_in: str) -> str:
     for choice in choices:
         if re.search("听夏洛缇", choice):
             return choice + "にすればいいよよ！"
-    rand_num = random.randint(-1, len(choices))
-    if 0 <= rand_num < len(choices):
-        return choices[rand_num] + "にすればいいよ！"
+    rand_num = random.randint(-1, 5 * len(choices))
+    if 0 <= int(rand_num / 5) < len(choices):
+        return choices[int(rand_num / 5)] + "にすればいいよ！"
     elif rand_num == -1:
         return "全不にすればいいよ！"
     else:

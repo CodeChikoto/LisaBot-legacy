@@ -1,17 +1,19 @@
 import re
 import random
 import os
+from functools import wraps
+
 from tools.get_player_data import *
 from tools.image import *
 from tools.shared_var import *
-from _thread import start_new_thread, allocate_lock
+from _thread import allocate_lock
 from math import ceil
+from multiprocessing import Process
 
 random.seed(2508)
 
 
-def check_combo(user_chart):
-    state = None
+def _check_combo(user_chart):
     if all(miss[-1] == 0 for miss in user_chart):
         if all(good[-2] == 0 for good in user_chart):
             if all(great[-3] == 0 for great in user_chart):
@@ -75,7 +77,7 @@ def cal_achie_range(user_in: str):
         max_achie = max_user_basic / total_basic * 100 + max_user_ex / total_ex
         min_achie = min_user_basic / total_basic * 100 + min_user_ex / total_ex
         return f"{max_achie:.4f}% ~ {min_achie:.4f}%\n" \
-               f"结果可能存在略微偏差\n" + check_combo(user_chart)
+               f"结果可能存在略微偏差\n" + _check_combo(user_chart)
     else:
         return "没有这个谱面捏"
 
@@ -135,7 +137,7 @@ def cal_break_dist(user_in: str):
           f"Break Great 分为4/3/2.5基础分，并且都有0.4额外分。"
     for case in ans:
         msg += f"\nP0.75:{case[0]}  P0.5:{case[1]}  Gr4:{case[2]}  Gr3:{case[3]}  Gr2.5:{case[4]}"
-    return check_combo(user_chart), text_to_image(msg)
+    return _check_combo(user_chart), str(image_to_base64(text_to_image(msg)), encoding="utf-8")
 
 
 def select_chart(user_in: str):
@@ -180,12 +182,10 @@ Slide: {res[10]}
         msg += f"""Break: {res[12]}
 谱师：{res[7]}
 定级版本：{res[15]}"""
-        with open(f"./cache/{res[5]}{res[2]}", "wb") as cover:
-            cover.write(res[1])
-        img_path = f"file://{os.getcwd()}/cache/{res[5]}{res[2]}"
+        img = Image.open(BytesIO(res[1]))
+        return msg, str(image_to_base64(img), encoding="utf-8")
     else:
-        msg = "谱面不存在哟！检查下 ID 或者难度～"
-    return msg, img_path
+        return "谱面不存在哟！检查下 ID 或者难度～", ""
 
 
 def random_chart(user_in: str):
@@ -194,9 +194,8 @@ def random_chart(user_in: str):
     keywords = keyword.replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"SELECT CI.Id,CD.Difficulty FROM ChartInfo CI JOIN ChartDifficulty CD "
-                   f"ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
-                   f"WHERE CI.Charter LIKE '%{keywords}%'")
+    cursor.execute(f"SELECT CI.Id,CD.Difficulty FROM ChartInfo CI JOIN ChartDifficulty CD ON CI.Id=CD.Id "
+                   f"AND CI.Difficulty=CD.Difficulty WHERE CI.Charter LIKE '%{keywords}%' AND CD.Version='舞萌DX 2021'")
     res = cursor.fetchall()
     conn.close()
     if res:
@@ -206,6 +205,7 @@ def random_chart(user_in: str):
         return "", ""
 
 
+# return: text, image (in BASE64 string)
 async def get_achie_list(user_in: str, user_id: int):
     def _find_level_achi(start: int, end: int, lock):
         nonlocal data, ans
@@ -222,7 +222,7 @@ async def get_achie_list(user_in: str, user_id: int):
     payload["version"] = get_all_request_versions()
     data = await get_player_data(payload, "plate")
     if isinstance(data, str):
-        return data
+        return data, None
     ans, locks_list = [], []
     played = len(data["verlist"])
     for i in range(cpu_thread_amount):
@@ -230,13 +230,14 @@ async def get_achie_list(user_in: str, user_id: int):
         lock.acquire()
         locks_list.append(lock)
         # for i in range(4):
-        start_new_thread(_find_level_achi, (int(played / cpu_thread_amount * i),
-                                            int(played / cpu_thread_amount * (i + 1)), locks_list[i]))
+        Process(target=_find_level_achi, args=(int(played / cpu_thread_amount * i),
+                                               int(played / cpu_thread_amount * (i + 1)),
+                                               locks_list[i])).run()
     while any(lock.locked() for lock in locks_list):
         pass
     total_pages = ceil(len(ans) / 25)
     if not ans:
-        return "真的打过这个等级嘛？"
+        return "真的打过这个等级嘛？", None
     ans.sort(key=lambda x: x["achievements"], reverse=True)
     ans = ans[25 * (page - 1):min(25 * page, len(ans))]
     msg = f"你的等级{level}达成率列表第{page}/{total_pages}页如下："
@@ -253,7 +254,7 @@ async def get_achie_list(user_in: str, user_id: int):
                f"{difficulty}{float(inner_level)}  {chart['title']}"
     conn.close()
     msg += f"\nCreated by LisaBot, maintained by Koto(RINkoTO)"
-    return image_to_base64(text_to_image(msg))
+    return "", str(image_to_base64(text_to_image(msg)), encoding="utf-8")
 
 
 async def get_level_process(user_in: str, user_id: int):
@@ -303,8 +304,8 @@ async def get_level_process(user_in: str, user_id: int):
         lock.acquire()
         locks_list.append(lock)
         # for i in range(4):
-        start_new_thread(_check_each, (int(played / cpu_thread_amount * i),
-                                       int(played / cpu_thread_amount * (i + 1)), locks_list[i]))
+        Process(target=_check_each, args=(int(played / cpu_thread_amount * i),
+                                          int(played / cpu_thread_amount * (i + 1)), locks_list[i])).run()
     while any(lock.locked() for lock in locks_list):
         pass
     msg = f"你的等级 {level} {achi_rank} {combo} {sync} 完成进度{count}/{total}\n"
@@ -313,7 +314,7 @@ async def get_level_process(user_in: str, user_id: int):
 
 
 async def get_plate_process(user_in: str, user_id: int) -> str:
-    def _find_finished(start: int, end: int, lock, plate: str):
+    def _find_finished(start: int, end: int, plate: str, lock):
         nonlocal charts, finished_amount, unfinished_chart
         if plate_require[plate] in achie_ranks.keys():
             for chart in charts[start:end]:
@@ -369,16 +370,16 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
     conn.close()
 
     # find finished charts
-    locks_list, played, finished_amount, unfinished_chart = [allocate_lock() for _ in range(cpu_thread_amount)], \
-                                                            len(charts), [0, 0, 0, 0, 0], []
+    played, finished_amount, unfinished_chart = len(charts), [0, 0, 0, 0, 0], []
+    lock_list = []
     for i in range(cpu_thread_amount):
-        locks_list[i].acquire()
-        # for i in range(4):
-        start_new_thread(_find_finished, (int(played / cpu_thread_amount * i),
-                                          int(played / cpu_thread_amount * (i + 1)), locks_list[i], plate))
-    while any(lock.locked() for lock in locks_list):
+        lock_list.append(allocate_lock())
+        lock_list[i].acquire()
+        Process(target=_find_finished, args=(int(played / cpu_thread_amount * i),
+                                             int(played / cpu_thread_amount * (i + 1)),
+                                             plate, lock_list[i])).run()
+    while any(lock.locked() for lock in lock_list):
         pass
-
     text = f"{plate}的要求是 {plate_require[plate]}\n" \
            f"你的{ver}{plate}完成情况如下：\n"
     if sum(finished_amount) == chart_amount:
@@ -459,21 +460,18 @@ def get_achi_line(user_in: str):
         ans.append([1 / total_ex, 0.75 / total_ex, 0.5 / total_ex, -1 / total_base * 100 + 0.4 / total_ex,
                     -2 / total_base * 100 + 0.4 / total_ex, -2.5 / total_base * 100 + 0.4 / total_ex,
                     -3 / total_base * 100 + 0.3 / total_ex, -5 / total_base * 100])
-    cursor.execute(f"SELECT SI.Title,SI.Cover,SI.ImageExt,CD.InnerLevel FROM SongInfo SI LEFT JOIN ChartDifficulty CD "
+    cursor.execute(f"SELECT SI.Title,SI.Cover,CD.InnerLevel FROM SongInfo SI LEFT JOIN ChartDifficulty CD "
                    f"ON SI.Id=CD.Id WHERE SI.Id={id} AND CD.Difficulty='{difficulty}' AND "
                    f"CD.Version LIKE '%{version}%'")
     try:
-        title, cover, ext, inner_level = cursor.fetchone()
+        title, cover, inner_level = cursor.fetchone()
     except TypeError:
         return "谱面不存在哦～", ""
-    with open(f"./cache/{id}{ext}", "wb") as cover_file:
-        cover_file.write(cover)
-    cover_file.close()
     base_drawer = ImageDraw.Draw(base_pic)
     cover_frame = Image.open(f"./material/difficulty_frame/UI_UPE_MusicJacket_Base_"
                              f"{difficulty_file[difficulty]}.png").resize((146, 133))
     base_pic.paste(cover_frame, (101, 73), mask=cover_frame.split()[3])
-    cover_img = Image.open(f"./cache/{id}{ext}").resize((103, 103))
+    cover_img = Image.open(BytesIO(cover)).resize((103, 103))
     base_pic.paste(cover_img, (123, 89), mask=cover_img.split()[3])
     title_font = ImageFont.truetype("./SourceHanSans_17.ttf", 36, encoding="utf-8")
     limit = lambda text: text if title_font.getsize(text)[0] <= 680 else limit(text[:-1])
@@ -518,3 +516,15 @@ def get_achi_line(user_in: str):
         base_drawer.text((x - int(great_font.getsize(f"{break_equal:.4f}")[0] / 2), 930), f"{break_equal:.4f}",
                          "#083060", font=great_font)
     return str(image_to_base64(base_pic), encoding="utf-8"), ""
+
+
+# return: text, image path
+def get_ver_plates(user_in: str):
+    regex = "^牌子(条件|列表)\s?(.+)?"
+    _, ver = re.match(regex, user_in).groups()
+    if ver not in ver_file.keys():
+        return f"使用方法是：牌子条件 [版本简称]\n版本简称包含如下：{'、'.join(ver_file.keys())}", ""
+    if os.path.exists(f"./material/plate_requirement/Lisa/{ver_file[ver]}-lisa.png"):
+        return "", f"file://{os.getcwd()}/material/plate_requirement/Lisa/{ver_file[ver]}-lisa.png"
+    else:
+        return "该版本牌子还没有上线～", ""

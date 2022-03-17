@@ -1,3 +1,5 @@
+from _thread import start_new_thread
+from sched import scheduler
 import nonebot.matcher
 from nonebot import *
 from nonebot.adapters.cqhttp import *
@@ -5,6 +7,7 @@ from nonebot.typing import *
 from interact_func.select import *
 from tools.image import *
 from interact_func.emoji import *
+from pyrate_limiter import (BucketFullException, Duration, RequestRate, Limiter, MemoryListBucket)
 
 
 def _update_blacklist():
@@ -20,10 +23,12 @@ bot_nick = ["lisa", "妈妈", "リサ"]
 bot_nick_regex = f"^({'|'.join(bot_nick)})"
 act = ["亲亲", "抱抱", "贴贴"]
 random.seed(time.time())
+blacklist = []
 blacklist_updater = scheduler(time.time, time.sleep)
 blacklist_updater.enter(0, 0, _update_blacklist, ())
 start_new_thread(blacklist_updater.run, ())
-blacklist = []
+minute_rate = RequestRate(12, Duration.MINUTE)
+limiter = Limiter(minute_rate, bucket_class=MemoryListBucket)
 
 
 async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
@@ -31,8 +36,12 @@ async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
 
 
 async def _in_blacklist(bot: Bot, event: Event, state: dict) -> bool:
-    values = event.user_id in blacklist
-    return event.user_id in blacklist
+    value = event.user_id in blacklist
+    try:
+        limiter.try_acquire(event.group_id if event.message_type == "group" else event.user_id)
+    except BucketFullException:
+        value = True
+    return value
 
 
 help_menu = on_regex(bot_nick_regex + " (help|帮助)", priority=2, block=True)
@@ -43,6 +52,7 @@ huge = on_regex(bot_nick_regex + f" ({'|'.join(act)})", priority=2)
 boom_leave = on_regex(bot_nick_regex + f" (退群|爆炸)", rule=_from_koto)
 manage_blacklist = on_regex(bot_nick_regex + f" (移除|移出|添加|增加|加入)黑名单 ([0-9]+)")
 ignore = on_message(rule=_in_blacklist, priority=1, block=True)
+set_message_rate = on_regex(bot_nick_regex + f" 发言速率 ([0-9]+)", rule=_from_koto)
 
 
 @help_menu.handle()
@@ -120,7 +130,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         msg = Message([
             {
                 "type": "image",
-                "data": {"file": f"{select_emoji(emoji_id)}"}
+                "data": {"file": f"base64://{select_emoji(emoji_id)}"}
             },
             {
                 "type": "text",
@@ -144,7 +154,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         },
         {
             "type": "image",
-            "data": {"file": f"{random_emoji('joyful')}"}
+            "data": {"file": f"base64://{random_emoji('joyful')}"}
         }
     ]))
 
@@ -200,3 +210,12 @@ async def _(bot: Bot, event: Event, state: T_State):
 async def _(bot: Bot, event: Event, state: T_State, matcher: nonebot.matcher.Matcher):
     matcher.stop_propagation()
     await ignore.finish()
+
+
+@set_message_rate.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    global minute_rate, limiter
+    regex = bot_nick_regex + f" 发言速率 ([0-9]+)"
+    _, rate = re.match(regex, str(event.get_message())).groups()
+    minute_rate = RequestRate(int(rate), Duration.MINUTE)
+    limiter = Limiter(minute_rate, bucket_class=MemoryListBucket)

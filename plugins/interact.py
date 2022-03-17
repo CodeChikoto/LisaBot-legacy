@@ -32,7 +32,6 @@ async def _bot_muted(bot: Bot, event: Event, state: dict) -> bool:
     return event.notice_type == "group_ban" and event.user_id == int(bot.self_id) and event.duration
 
 
-
 random.seed(time.time())
 # {group_id: last_message, count}
 msg_record = {}
@@ -56,7 +55,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         await poke_back.finish(Message([
             {
                 "type": "image",
-                "data": {"file": f"{random_emoji('%')}"}
+                "data": {"file": f"base64://{random_emoji('%')}"}
             }
         ]))
     # poke
@@ -142,9 +141,8 @@ async def _(bot: Bot, event: Event, state: T_State):
     mute_time = random.randint(600, 2591999)
     try:
         await bot.set_group_ban(group_id=event.group_id, user_id=event.target_id, duration=mute_time)
-    except CQHTTPAdapterException:
-        pass
-    await poke_mute.finish()
+    finally:
+        await poke_mute.finish()
 
 
 @today_luck.handle()
@@ -168,7 +166,7 @@ async def _(bot: Bot, event: Event, state: T_State):
     groups_list = await bot.get_group_list()
     for group in groups_list:
         await bot.send_group_msg(group_id=group["group_id"], message=msg)
-        time.sleep(2)
+        time.sleep(3)
 
 
 @unmute_koto.handle()

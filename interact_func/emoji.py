@@ -1,12 +1,14 @@
 import os
-
+from io import BytesIO
+from PIL import Image
+from tools.image import image_to_base64
 from tools.shared_var import *
 import random
 
 
 random.seed(2301)
 mom_quotation = {"care": ["どうしたの？", "大丈夫？", "お元気ですか？"],
-                 "sugar": ["ゆきなのこと......", "ゆきな〜"]}
+                 "sugar": ["ゆきなのこと......", "ゆ～き～な〜"]}
 
 
 def mom(key: str):
@@ -17,19 +19,15 @@ def mom(key: str):
 def random_emoji(type: str):
     conn = quotation_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"SELECT Type,Image,ImageExt FROM Emoji WHERE Type LIKE '{type}'")
+    cursor.execute(f"SELECT Image FROM Emoji WHERE Type LIKE '{type}'")
     res = cursor.fetchall()
-    type, image, ext = random.choice(res)
-    with open(f"./cache/{type}{ext}", "wb") as file:
-        file.write(image)
-    return f"file://{os.getcwd()}/cache/{type}{ext}"
+    img = random.choice(res)
+    return str(image_to_base64(Image.open(BytesIO(img))), encoding="utf-8")
 
 
 def select_emoji(id: int):
     conn = quotation_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"SELECT Type,Image,ImageExt FROM Emoji WHERE Id={id}")
-    type, image, ext = cursor.fetchone()
-    with open(f"./cache/{type}{ext}", "wb") as file:
-        file.write(image)
-    return f"file://{os.getcwd()}/cache/{type}{ext}"
+    cursor.execute(f"SELECT Image FROM Emoji WHERE Id={id}")
+    [img] = cursor.fetchone()
+    return str(image_to_base64(Image.open(BytesIO(img))), encoding="utf-8")

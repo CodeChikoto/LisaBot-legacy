@@ -1,5 +1,3 @@
-from _thread import start_new_thread
-from sched import scheduler
 import pymysql
 import multiprocessing
 from dbutils.pooled_db import PooledDB
@@ -49,7 +47,8 @@ version_aliases = {'真': [['maimai', 'maimai PLUS'], ['maimai', 'maimai PLUS'],
                    '白': [['maimai MiLK'], ['maimai MiLK'], ['maimai MiLK']],
                    '雪': [['maimai MiLK PLUS'], ['maimai MiLK PLUS'], ['MiLK PLUS']],
                    '輝': [['maimai FiNALE'], ['maimai FiNALE'], ['maimai FiNALE']],
-                   '辉': [['maimai FiNALE'], ['maimai FiNALE'], ['maimai FiNALE']], '舞': [[], [], []]}
+                   '辉': [['maimai FiNALE'], ['maimai FiNALE'], ['maimai FiNALE']],
+                   '舞': [[], [], []]}
 for ver_ori in version_aliases.values():
     version_aliases['舞'][0] += ver_ori[0]
     version_aliases['舞'][1] += ver_ori[1]
@@ -82,6 +81,30 @@ ver_num_list = {
     "熊": 55101,
     "華": 109101,
     "爽": 159101
+}
+ver_file = {
+    '真': 'shin',
+    '超': 'cho',
+    '檄': 'geki',
+    '橙': 'daidai',
+    '暁': 'akatsuki',
+    '晓': 'akatsuki',
+    '桃': 'momo',
+    '櫻': 'sakura',
+    '樱': 'sakura',
+    '紫': 'murasaki',
+    '菫': 'sumire',
+    '堇': 'sumire',
+    '白': 'shira',
+    '雪': 'yuki',
+    '輝': 'akira',
+    '辉': 'akira',
+    '舞': 'mai',
+    '熊': 'kuma-hana',
+    '華': 'kuma-hana',
+    '华': 'kuma-hana',
+    '爽': 'sawa',
+    '煌': 'kira'
 }
 plate_require = {
     "极": "FC",

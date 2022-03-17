@@ -8,22 +8,33 @@ from tools.get_player_data import *
 from re import match
 from tools.image import *
 from tools.shared_var import *
-import _thread
 import os
+from functools import lru_cache
+from multiprocessing import Process
+from _thread import allocate_lock, start_new_thread
 
 
-class BestList():
+class BestList:
     def __init__(self, payload: dict, mode: str):
         self.rank_rating, self.rating, self.dx_rating = 0, 0, 0
         self.nickname, self.plate = "", None
         self.payload = payload
         self.mode = mode
-        self.bg_path = "./material/background/B40-uni-lisa.png" if self.mode == "B40" \
-            else "./material/background/B50-uni-lisa.png"
+        self.bg_path = "./material/background/B40-unip-lisa.png" if self.mode == "B40" \
+            else "./material/background/B50-unip-lisa.png"
         self.bg_img = Image.open(self.bg_path)
         self.bg_draw = ImageDraw.Draw(self.bg_img)
         self.old_list, self.new_list = [], []
         self.error = ""
+
+    @staticmethod
+    @lru_cache(300)
+    def _fetch_song_cover(id: int):
+        print(f"fetching {id}")
+        conn = mai_dbpool.connection()
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT Cover FROM SongInfo WHERE Id={id}")
+        return cursor.fetchone()[0]
 
     # Nickname, B40 Rating, Rank
     async def get_basic_info(self) -> bool:
@@ -82,12 +93,12 @@ class BestList():
             charts, clear = data["verlist"], len(data["verlist"])
             locks_list = []
             for i in range(cpu_thread_amount):
-                lock = _thread.allocate_lock()
+                lock = allocate_lock()
                 lock.acquire()
                 locks_list.append(lock)
-            for i in range(cpu_thread_amount):
-                _thread.start_new_thread(_fill_info, (int(clear / cpu_thread_amount * i),
-                                                      int(clear / cpu_thread_amount * (i + 1)), locks_list[i]))
+                Process(target=_fill_info, args=(int(clear / cpu_thread_amount * i),
+                                                            int(clear / cpu_thread_amount * (i + 1)),
+                                                            locks_list[i])).run()
             while any(lock.locked() for lock in locks_list):
                 pass
             self.old_list.sort(key=lambda x: x["ra"], reverse=True)
@@ -100,7 +111,7 @@ class BestList():
             self.error = data
             return False
 
-    def draw_list(self):
+    def draw_list(self, lock1, lock2):
         combo_sync_file = {"fcp": "FCp", "fc": "FC", "ap": "AP", "app": "APp",
                            "fs": "FS", "fsp": "FSp", "fsd": "FSD", "fsdp": "FSDp"}
         achi_rank_file = {"sssp": "SSSp", "sss": "SSS", "ssp": "SSp", "ss": "SS", "sp": "Sp", "s": "S",
@@ -114,53 +125,44 @@ class BestList():
         x_gap, y_gap = (375, 120) if self.mode == "B40" else (375, 110)
 
         # fetch cover from database, return cover path
-        def _draw_cover(id: int, x: int, y: int, cursor):
-            if f"{id}.png" not in os.listdir("./cache"):
-                cursor.execute(f"SELECT Cover,ImageExt FROM SongInfo WHERE Id={id}")
-                [cover_blob, ext] = cursor.fetchone()
-                with open("./cache/" + str(id) + ext, "wb") as cover_file:
-                    cover_file.write(cover_blob)
-                cover_file.close()
-            cover_img = Image.open(f"./cache/{str(id)}.png").convert("RGB")
-            cover_img = cover_img.resize((80, 80))
+        def _draw_cover(id: int, x: int, y: int):
+
+            cover_img = Image.open(BytesIO(self._fetch_song_cover(id))).resize((80, 80))
             self.bg_img.paste(cover_img, (x, y))
 
         # frame outside song cover
         def _draw_difficulty_frame(difficulty: str, x: int, y: int):
             difficulty = difficulty_file[difficulty]
-            chart_frame_img = Image.open(f"./material/difficulty_frame/UI_UPE_MusicJacket_Base_{difficulty}.png")
-            chart_frame_img = chart_frame_img.resize((112, 102))
+            chart_frame_img = Image.open(f"./material/difficulty_frame/"
+                                         f"UI_UPE_MusicJacket_Base_{difficulty}.png").resize((112, 102))
             self.bg_img.paste(chart_frame_img, (x, y), mask=chart_frame_img.split()[3])
 
         # AP/FC, FS/FSD
         def _draw_combo_sync_rank(combo_type: str, sync_type: str, x: int, y: int):
             if combo_type:
-                combo_img = Image.open(f"./material/rate_icon/UI_MSS_MBase_Icon_{combo_sync_file[combo_type]}.png")
-                combo_img = combo_img.resize((28, 28))
+                combo_img = Image.open(f"./material/rate_icon/"
+                                       f"UI_MSS_MBase_Icon_{combo_sync_file[combo_type]}.png").resize((28, 28))
                 self.bg_img.paste(combo_img, (x, y), mask=combo_img.split()[3])
             if sync_type:
-                sync_img = Image.open(f"./material/rate_icon/UI_MSS_MBase_Icon_{combo_sync_file[sync_type]}.png")
-                sync_img = sync_img.resize((28, 28))
+                sync_img = Image.open(f"./material/rate_icon/"
+                                      f"UI_MSS_MBase_Icon_{combo_sync_file[sync_type]}.png").resize((28, 28))
                 self.bg_img.paste(sync_img, (x + 24, y), mask=sync_img.split()[3])
 
         # 谱面类型
         def _draw_chart_type(chart_type: str, x: int, y: int):
-            chart_type_img = Image.open("./material/UI_TST_Infoicon_DeluxeMode.png") \
-                if chart_type == "DX" else Image.open("./material/UI_TST_Infoicon_StandardMode.png")
-            chart_type_img = chart_type_img.resize((50, 16))
+            chart_type_img = Image.open("./material/UI_TST_Infoicon_DeluxeMode.png").resize((50, 16)) \
+                if chart_type == "DX" else Image.open("./material/UI_TST_Infoicon_StandardMode.png").resize((50, 16))
             self.bg_img.paste(chart_type_img, (x, y), mask=chart_type_img.split()[3])
 
         # 评级
         def _draw_achie_rank(rate: str, x: int, y: int):
-            rate_img = Image.open(f"./material/achieve_rank/UI_TTR_Rank_{achi_rank_file[rate]}.png")
-            rate_img = rate_img.resize((64, 30))
+            rate_img = Image.open(f"./material/achieve_rank/UI_TTR_Rank_{achi_rank_file[rate]}.png").resize((64, 30))
             self.bg_img.paste(rate_img, (x, y), mask=rate_img.split()[3])
 
-        # 曲名标题，限长272/226
+        # 曲名标题，限长226
         def _draw_title(title: str, x: int, y: int):
-            if title_font.getsize(title)[0] > 226:
-                limit = lambda text: text if title_font.getsize(text)[0] <= 226 else limit(text[:-1])
-                title = limit(title)
+            limit = lambda text: text if title_font.getsize(text)[0] <= 226 else limit(text[:-1])
+            title = limit(title)
             bg_drawer.text((x, y), title, "white", font=title_font)
 
         # 达成率
@@ -186,8 +188,6 @@ class BestList():
             x_title, y_title = (141, 237) if self.mode == "B40" else (142, 219)
             x_level, y_level = (245, 309) if self.mode == "B40" else (246, 289)
             x_sin_rating, y_sin_rating = (253, 306) if self.mode == "B40" else (254, 286)
-            conn = mai_dbpool.connection()
-            cursor = conn.cursor()
             i = 0
             for y in range(7):
                 if i >= len(self.old_list):
@@ -197,7 +197,7 @@ class BestList():
                         break
                     chart_info = self.old_list[i]
                     _draw_difficulty_frame(chart_info["level_label"], x_df + x * x_gap, y_df + y * y_gap)
-                    _draw_cover(chart_info["song_id"], x_cover + x * x_gap, y_cover + y * y_gap, cursor)
+                    _draw_cover(chart_info["song_id"], x_cover + x * x_gap, y_cover + y * y_gap)
                     _draw_combo_sync_rank(chart_info["fc"], chart_info["fs"], x_csr + x * x_gap, y_csr + y * y_gap)
                     _draw_chart_type(chart_info["type"], x_ct + x * x_gap, y_ct + y * y_gap)
                     _draw_achie_rank(chart_info["rate"], x_ar + x * x_gap, y_ar + y * y_gap)
@@ -206,7 +206,6 @@ class BestList():
                     _draw_inner_level(chart_info["ds"], x_level + x * x_gap, y_level + y * y_gap)
                     _draw_single_rating(chart_info["ra"], x_sin_rating + x * x_gap, y_sin_rating + y * y_gap)
                     i += 1
-            conn.close()
             lock.release()
 
         def _draw_new_list(lock):
@@ -221,8 +220,6 @@ class BestList():
             x_level, y_level = (245, 949) if self.mode == "B40" else (246, 1099)
             x_sin_rating, y_sin_rating = (253, 946) if self.mode == "B40" else (254, 1096)
             i = 0
-            conn = mai_dbpool.connection()
-            cursor = conn.cursor()
             for y in range(3):
                 if i >= len(self.new_list):
                     break
@@ -231,7 +228,7 @@ class BestList():
                         break
                     chart_info = self.new_list[i]
                     _draw_difficulty_frame(chart_info["level_label"], x_df + x * x_gap, y_df + y * y_gap)
-                    _draw_cover(chart_info["song_id"], x_cover + x * x_gap, y_cover + y * y_gap, cursor)
+                    _draw_cover(chart_info["song_id"], x_cover + x * x_gap, y_cover + y * y_gap)
                     _draw_combo_sync_rank(chart_info["fc"], chart_info["fs"], x_csr + x * x_gap, y_csr + y * y_gap)
                     _draw_chart_type(chart_info["type"], x_ct + x * x_gap, y_ct + y * y_gap)
                     _draw_achie_rank(chart_info["rate"], x_ar + x * x_gap, y_ar + y * y_gap)
@@ -240,15 +237,10 @@ class BestList():
                     _draw_inner_level(chart_info["ds"], x_level + x * x_gap, y_level + y * y_gap)
                     _draw_single_rating(chart_info["ra"], x_sin_rating + x * x_gap, y_sin_rating + y * y_gap)
                     i += 1
-            conn.close()
             lock.release()
 
-        lock1, lock2 = _thread.allocate_lock(), _thread.allocate_lock()
-        lock1.acquire(), lock2.acquire()
-        _thread.start_new_thread(_draw_old_list, (lock1,))
-        _thread.start_new_thread(_draw_new_list, (lock2,))
-        while lock1.locked() or lock2.locked():
-            pass
+        start_new_thread(_draw_old_list, (lock1,))
+        start_new_thread(_draw_new_list, (lock2,))
 
     def draw_name_plate(self, lock):
 
@@ -312,22 +304,19 @@ class BestList():
                     rank_id = "14"
                 else:
                     rank_id = str(int(14 + (self.rank_rating - 2000) / 10))
-                rank_img = Image.open(f"./material/rank_icon/UI_Rank_{rank_id}.png")
-                rank_img = rank_img.resize((100, 43))
+                rank_img = Image.open(f"./material/rank_icon/UI_Rank_{rank_id}.png").resize((100, 43))
                 plate_img.paste(rank_img, (416, 9), mask=rank_img.split()[3])
 
-            rating_frame_img = Image.open(f"./material/rating_box/UI_CMN_DXRating_{_specific_frame()}.png")
-            rating_frame_img = rating_frame_img.resize((230, 45))
+            rating_frame_img = Image.open(f"./material/rating_box/"
+                                          f"UI_CMN_DXRating_{_specific_frame()}.png").resize((230, 45))
             plate_img.paste(rating_frame_img, (176, 9), mask=rating_frame_img.split()[3])
             dxrating_str = reversed(str(self.dx_rating))
             for x, num in zip([355, 337, 319, 301, 283], dxrating_str):
-                num_img = Image.open(f"./material/numbers/{num}.png")
-                num_img = num_img.resize((21, 25))
+                num_img = Image.open(f"./material/numbers/{num}.png").resize((21, 25))
                 plate_img.paste(num_img, (x, 20), mask=num_img.split()[3])
             _draw_rank_frame() if self.mode == "B40" else None
 
-            note_img = Image.open("./material/UI_CMN_Shougou_Rainbow.png")
-            note_img = note_img.resize((352, 46))
+            note_img = Image.open("./material/UI_CMN_Shougou_Rainbow.png").resize((352, 46))
             plate_img.paste(note_img, (171, 116), mask=note_img.split()[3])
             font_note = ImageFont.truetype("./Dongqing.otf", 20, encoding="utf-8")
             rating_note = f"B40:  {self.rating} + {self.rank_rating}" if self.mode == "B40" else "Best 50 Simulation"
@@ -336,24 +325,18 @@ class BestList():
                             stroke_width=2, stroke_fill="black")
 
         def _draw_name():
-            white_frame_img = Image.open("./material/UI_WhiteFrame.png")
-            white_frame_img = white_frame_img.resize((345, 59))
+            white_frame_img = Image.open("./material/UI_WhiteFrame.png").resize((345, 59))
             plate_img.paste(white_frame_img, (174, 59), mask=white_frame_img.split()[3])
             name_font = ImageFont.truetype("./SourceHanSans_17.ttf", 30, encoding="utf-8")
             nickname = ' '.join(self.nickname)
-            if name_font.getsize(nickname)[0] > 271:
-                limit = lambda text: text if name_font.getsize(text)[0] <= 271 else limit(text[:-1])
-                nickname = limit(nickname)
+            limit = lambda text: text if name_font.getsize(text)[0] <= 271 else limit(text[:-1])
+            nickname = limit(nickname)
             plate_draw.text((193, 61), nickname, "black", name_font)
             if "qq" in self.payload:
                 try:
                     data = requests.get(f'http://q1.qlogo.cn/g?b=qq&nk={self.payload["qq"]}&s=640')
-                    with open(f"./cache/head{self.payload['qq']}.png", "wb") as head_file:
-                        head_file.write(data.content)
-                    head_img = Image.open(f"./cache/head{self.payload['qq']}.png")
-                    head_img = head_img.resize((143, 143))
-                    head_img_mask = Image.open(f"./material/UI_Icon_000001.png")
-                    head_img_mask = head_img_mask.resize((143, 143))
+                    head_img = Image.open(BytesIO(data.content)).resize((143, 143))
+                    head_img_mask = Image.open(f"./material/UI_Icon_000001.png").resize((143, 143))
                     plate_img.paste(head_img, (12, 9), mask=head_img_mask)
                 finally:
                     pass
@@ -394,11 +377,13 @@ class BestList():
         await self.get_basic_info()
         if self.mode == "B50":
             await self.get_best_50()
-        lock = _thread.allocate_lock()
-        lock.acquire()
-        _thread.start_new_thread(self.draw_name_plate, (lock,))
-        self.draw_list()
-        while lock.locked():
+        locks_list = []
+        for i in range(3):
+            locks_list.append(allocate_lock())
+            locks_list[i].acquire()
+        self.draw_list(locks_list[0], locks_list[1])
+        start_new_thread(self.draw_name_plate, (locks_list[2],))
+        while any(lock.locked() for lock in locks_list):
             pass
         return True
 
@@ -613,4 +598,4 @@ async def analyze_rating(user_in: str, user_id: int):
         text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(new_list, "B15")) + "\n\n"
     text += "* 推荐结果为完全随机，LisaBot 不会对您的数据进行指向性推荐。\n" \
             "Analyzed by LisaBot, function developed by Koto(RINkoTO) & Ryan"
-    return None, image_to_base64(text_to_image(text))
+    return None, str(image_to_base64(text_to_image(text)), encoding="utf-8")

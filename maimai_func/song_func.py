@@ -1,9 +1,9 @@
 import re
-import os
 import random
 from math import ceil
-
 from tools.shared_var import *
+from tools.image import *
+from io import StringIO
 
 random.seed(2508)
 
@@ -168,8 +168,7 @@ def select_song(user_in: str):
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
-    cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion,"
-                   f"Cover,ImageExt FROM SongInfo WHERE Id={id}")
+    cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion,Cover FROM SongInfo WHERE Id={id}")
     res = cursor.fetchone()
     if not res:
         return "好像没有这首歌", ""
@@ -183,11 +182,7 @@ BPM: {res[3]}
 日服版本：{res[6]}
 国服版本：{res[7]}
 等级："""
-    if res[8]:
-        with open(f"./cache/{res[0]}{res[9]}", "wb") as cover_file:
-            cover_file.write(res[8])
-        cover_file.close()
-    img_path = f"file://{os.getcwd()}/cache/{res[0]}{res[9]}" if res[8] else ""
+    img = Image.open(BytesIO(res[8]))
     cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty WHERE Id={id} AND Version LIKE '%{version}%'"
                    "ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
     res = cursor.fetchall()
@@ -196,7 +191,7 @@ BPM: {res[3]}
     msg += '\n定数：'
     msg += ",".join(inner_level)
     conn.close()
-    return msg, img_path
+    return msg, str(image_to_base64(img), encoding="utf-8")
 
 
 def add_alias_handle(user_in: str):
