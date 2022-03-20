@@ -107,23 +107,23 @@ ver_file = {
     '煌': 'kira'
 }
 plate_require = {
-"极": "FC",
-"極": "FC",
-"将": "SSS",
-"神": "AP",
-"舞舞": "FSD",
-"霸者": "A",
-"覇者": "A"
+    "极": "FC",
+    "極": "FC",
+    "将": "SSS",
+    "神": "AP",
+    "舞舞": "FSD",
+    "霸者": "A",
+    "覇者": "A"
 }
 plate_num_list = {
-"極": 0,
-"将": 1,
-"神": 2,
-"舞舞": 3
+    "極": 0,
+    "将": 1,
+    "神": 2,
+    "舞舞": 3
 }
 
 achie_ranks = {'SSS+': 100.5, 'SSS': 100, 'SS+': 99.5, 'SS': 99, 'S+': 98, 'S': 97, 'AAA': 94,
-'AA': 90, 'A': 80, 'BBB': 75, 'BB': 70, 'B': 60, 'C': 50, 'D': 0}
+               'AA': 90, 'A': 80, 'BBB': 75, 'BB': 70, 'B': 60, 'C': 50, 'D': 0}
 achie_ranks_regex = f"({'|'.join(achie_ranks.keys())})"
 achie_ranks_regex = achie_ranks_regex.replace('+', '\+')
 combo_ranks = {"AP+": 0, "app": 0, "ap": 1, "AP": 1, "FC+": 2, "fcp": 2, "fc": 3, "FC": 3, "": 4}
@@ -136,14 +136,14 @@ sync_ranks_regex = sync_ranks_regex.replace('+', '\+')
 sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
 
 mai_dbpool = PooledDB(creator=pymysql, maxconnections=240, mincached=5, maxcached=None, blocking=True,
-maxusage = None, ping = 4, host = "127.0.0.1", port = 3306, user = "anyone", password = "UnpublicData",
-database = "maimai", charset = "utf8")
+                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
+                      database="maimai", charset="utf8")
 player_dbpool = PooledDB(creator=pymysql, maxconnections=20, mincached=2, maxcached=None, blocking=True,
-maxusage = None, ping = 5, host = "127.0.0.1", port = 3306, user = "anyone", password = "UnpublicData",
-database = "Player", charset = "utf8")
+                         maxusage=None, ping=5, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
+                         database="Player", charset="utf8")
 quotation_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=3, maxcached=None, blocking=True,
-maxusage = None, ping = 4, host = "127.0.0.1", port = 3306, user = "anyone",
-password = "UnpublicData",
-database = "Quotations", charset = "utf8")
+                            maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone",
+                            password="UnpublicData",
+                            database="Quotations", charset="utf8")
 mute_list = []
 cpu_thread_amount = max(multiprocessing.cpu_count(), 4)
