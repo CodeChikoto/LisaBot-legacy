@@ -1,3 +1,4 @@
+from functools import lru_cache
 import pymysql
 import multiprocessing
 from dbutils.pooled_db import PooledDB
@@ -63,7 +64,7 @@ version_aliases.update({
     '爽': [['maimai DX Splash'], ['舞萌DX 2021'], ['maimai でらっくす Splash']],
     '煌': [['maimai DX Splash PLUS'], ['舞萌DX 2021'], ['maimai でらっくす Splash PLUS']]
 })
-ver_num_list = {
+ver_num_dict = {
     "真": 6100,
     "超": 6104,
     "檄": 6108,
@@ -115,7 +116,7 @@ plate_require = {
     "霸者": "A",
     "覇者": "A"
 }
-plate_num_list = {
+plate_num_dict = {
     "極": 0,
     "将": 1,
     "神": 2,
@@ -145,5 +146,17 @@ quotation_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=3, max
                             maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone",
                             password="UnpublicData",
                             database="Quotations", charset="utf8")
+
 mute_list = []
 cpu_thread_amount = max(multiprocessing.cpu_count(), 4)
+
+
+@lru_cache(400)
+def fetch_song_cover(id: int):
+    print(f"fetching {id}")
+    conn = mai_dbpool.connection()
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT Cover FROM SongInfo WHERE Id={id}")
+    [img] = cursor.fetchone()
+    conn.close()
+    return img

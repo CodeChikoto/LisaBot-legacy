@@ -43,6 +43,7 @@ achi_line = on_regex("^(达成率|分数)线 " + difficulty_regex + "([0-9]+)\s?
                      priority=2, block=True)
 find_city_store = on_regex("^(查|寻)找机厅 (.+)", priority=2, block=True)
 view_store = on_regex("^(机厅|店铺)信息 (.+)-([0-9]+)", priority=2, block=True)
+rating_line = on_regex("^单曲(rating|ra) ([0-9]+\.[0-9])", priority=2, block=True)
 
 
 @inner_level_search.handle()
@@ -613,6 +614,20 @@ async def _(bot: Bot, event: Event, state: T_State):
 async def _(bot: Bot, event: Event, state: T_State):
     text = select_store(str(event.get_message()))
     await view_store.finish(Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": text}
+        }]))
+
+
+@rating_line.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    text = cal_single_rating_line(str(event.get_message()))
+    await rating_line.finish(Message([
         {
             "type": "reply",
             "data": {"id": event.message_id}

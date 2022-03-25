@@ -1,14 +1,12 @@
 import re
 import random
 import os
-from functools import wraps
-
+from typing import Any
 from tools.get_player_data import *
 from tools.image import *
 from tools.shared_var import *
-from _thread import allocate_lock
 from math import ceil
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 
 random.seed(2508)
 
@@ -154,10 +152,9 @@ def select_chart(user_in: str):
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
-    cursor.execute(f"SELECT SI.Title,SI.Cover,SI.ImageExt,SI.ChartType,SI.BPM,CI.Id,CI.Difficulty,CI.Charter,"
-                   f"CI.Tap,CI.Hold,CI.Slide,CI.Touch,CI.Break,CD.Level,CD.InnerLevel,CD.Version FROM ChartInfo CI "
-                   f"LEFT JOIN ChartDifficulty CD ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
-                   f"RIGHT JOIN SongInfo SI ON CI.Id=SI.Id "
+    cursor.execute(f"SELECT SI.Title,SI.ChartType,SI.BPM,CI.Id,CI.Difficulty,CI.Charter,CI.Tap,CI.Hold,CI.Slide,"
+                   f"CI.Touch,CI.Break,CD.Level,CD.InnerLevel,CD.Version FROM SongInfo SI LEFT JOIN "
+                   f"ChartInfo CI ON CI.Id=SI.Id LEFT JOIN ChartDifficulty CD ON CI.Difficulty=CD.Difficulty "
                    f"WHERE CI.Id={id} AND CI.Difficulty='{difficulty}' AND CD.Version LIKE '%{version}%'")
     res, img_path = cursor.fetchone(), ""
     conn.close()
@@ -166,23 +163,23 @@ def select_chart(user_in: str):
     if res:
         msg = f"""
 标题：{res[0]}
-ID: {res[5]}
-谱面类型：{res[3]}
-BPM: {res[4]}
-难度：{res[6]}
-等级：{res[13]}
-定数：{res[14]}
-Tap: {res[8]}
-Hold: {res[9]}
-Slide: {res[10]}
+ID: {res[3]}
+谱面类型：{res[1]}
+BPM: {res[2]}
+难度：{res[4]}
+等级：{res[11]}
+定数：{res[12]}
+Tap: {res[6]}
+Hold: {res[7]}
+Slide: {res[8]}
 """
-        if res[11]:
-            msg += f"""Touch: {res[11]}
+        if res[9]:
+            msg += f"""Touch: {res[9]}
 """
-        msg += f"""Break: {res[12]}
-谱师：{res[7]}
-定级版本：{res[15]}"""
-        img = Image.open(BytesIO(res[1]))
+        msg += f"""Break: {res[10]}
+谱师：{res[5]}
+定级版本：{res[13]}"""
+        img = Image.open(BytesIO(id))
         return msg, str(image_to_base64(img), encoding="utf-8")
     else:
         return "谱面不存在哟！检查下 ID 或者难度～", ""
@@ -207,12 +204,12 @@ def random_chart(user_in: str):
 
 # return: text, image (in BASE64 string)
 async def get_achie_list(user_in: str, user_id: int):
-    def _find_level_achi(start: int, end: int, lock):
+    def _find_level_achi(start: int, end: int, qu: Queue):
         nonlocal data, ans
         for chart in data["verlist"][start:end]:
             if chart["level"] == level:
                 ans.append(chart)
-        lock.release()
+        qu.put(1)
 
     # [level, page, username]
     regex = r"(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?"
@@ -223,18 +220,16 @@ async def get_achie_list(user_in: str, user_id: int):
     data = await get_player_data(payload, "plate")
     if isinstance(data, str):
         return data, None
-    ans, locks_list = [], []
+    ans = []
     played = len(data["verlist"])
+    qu, qu_count = Queue(), 0
     for i in range(cpu_thread_amount):
-        lock = allocate_lock()
-        lock.acquire()
-        locks_list.append(lock)
-        # for i in range(4):
         Process(target=_find_level_achi, args=(int(played / cpu_thread_amount * i),
                                                int(played / cpu_thread_amount * (i + 1)),
-                                               locks_list[i])).run()
-    while any(lock.locked() for lock in locks_list):
-        pass
+                                               qu)).run()
+    while qu_count != cpu_thread_amount:
+        if qu.get():
+            qu_count += 1
     total_pages = ceil(len(ans) / 25)
     if not ans:
         return "真的打过这个等级嘛？", None
@@ -276,9 +271,8 @@ async def get_level_process(user_in: str, user_id: int):
     if isinstance(data, str):
         return data
     count = 0
-    locks_list = []
 
-    def _check_each(start: int, end: int, lock):
+    def _check_each(start: int, end: int, qu: Queue):
         nonlocal achi_rank, combo, count
         if achi_rank and (combo or sync):
             for chart in data["verlist"][start:end]:
@@ -296,25 +290,23 @@ async def get_level_process(user_in: str, user_id: int):
                         sync_ranks[chart["fs"]] <= sync_ranks[sync]:
                     count += 1
             achi_rank = ""
-        lock.release()
+        qu.put(1)
 
+    qu, qu_count = Queue(), 0
     played = len(data["verlist"])
     for i in range(cpu_thread_amount):
-        lock = allocate_lock()
-        lock.acquire()
-        locks_list.append(lock)
-        # for i in range(4):
         Process(target=_check_each, args=(int(played / cpu_thread_amount * i),
-                                          int(played / cpu_thread_amount * (i + 1)), locks_list[i])).run()
-    while any(lock.locked() for lock in locks_list):
-        pass
+                                          int(played / cpu_thread_amount * (i + 1)), qu)).run()
+    while qu_count != cpu_thread_amount:
+        if qu.get():
+            qu_count += 1
     msg = f"你的等级 {level} {achi_rank} {combo} {sync} 完成进度{count}/{total}\n"
     msg += f"まだ{total - count}残ります〜" if total != count else "できましたおめでとう！"
     return msg
 
 
 async def get_plate_process(user_in: str, user_id: int) -> str:
-    def _find_finished(start: int, end: int, plate: str, lock):
+    def _find_finished(start: int, end: int, plate: str, qu: Queue):
         nonlocal charts, finished_amount, unfinished_chart
         if plate_require[plate] in achie_ranks.keys():
             for chart in charts[start:end]:
@@ -337,7 +329,7 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
                         finished_amount[chart["level_index"]] += 1
                     elif len(unfinished_chart) < 5:
                         unfinished_chart.append(chart)
-        lock.release()
+        qu.put(1)
 
     regex = f"({'|'.join(version_aliases.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
     # ver = 版本，plate = 牌子（含霸者）
@@ -371,15 +363,13 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
 
     # find finished charts
     played, finished_amount, unfinished_chart = len(charts), [0, 0, 0, 0, 0], []
-    lock_list = []
+    qu, qu_count = Queue(), 0
     for i in range(cpu_thread_amount):
-        lock_list.append(allocate_lock())
-        lock_list[i].acquire()
         Process(target=_find_finished, args=(int(played / cpu_thread_amount * i),
-                                             int(played / cpu_thread_amount * (i + 1)),
-                                             plate, lock_list[i])).run()
-    while any(lock.locked() for lock in lock_list):
-        pass
+                                             int(played / cpu_thread_amount * (i + 1)), plate, qu)).run()
+    while qu_count != cpu_thread_amount:
+        if qu.get():
+            qu_count += 1
     text = f"{plate}的要求是 {plate_require[plate]}\n" \
            f"你的{ver}{plate}完成情况如下：\n"
     if sum(finished_amount) == chart_amount:
@@ -394,7 +384,7 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
         if ver == '舞':
             text += f"Re:Master  {chart_amount - 4 * song_amount - finished_amount[4]}/" \
                     f"{chart_amount - 4 * song_amount}\n"
-        if len(unfinished_chart) < 5:
+        if 0 < len(unfinished_chart) < 5:
             text += f"已游玩但未达成谱面如下：\n"
             for chart in unfinished_chart:
                 text += f"{difficulty_short[chart['level_index']]}  {chart['id']}  {chart['title']}\n"
@@ -460,18 +450,18 @@ def get_achi_line(user_in: str):
         ans.append([1 / total_ex, 0.75 / total_ex, 0.5 / total_ex, -1 / total_base * 100 + 0.4 / total_ex,
                     -2 / total_base * 100 + 0.4 / total_ex, -2.5 / total_base * 100 + 0.4 / total_ex,
                     -3 / total_base * 100 + 0.3 / total_ex, -5 / total_base * 100])
-    cursor.execute(f"SELECT SI.Title,SI.Cover,CD.InnerLevel FROM SongInfo SI LEFT JOIN ChartDifficulty CD "
+    cursor.execute(f"SELECT SI.Title,CD.InnerLevel FROM SongInfo SI LEFT JOIN ChartDifficulty CD "
                    f"ON SI.Id=CD.Id WHERE SI.Id={id} AND CD.Difficulty='{difficulty}' AND "
                    f"CD.Version LIKE '%{version}%'")
     try:
-        title, cover, inner_level = cursor.fetchone()
+        title, inner_level = cursor.fetchone()
     except TypeError:
         return "谱面不存在哦～", ""
     base_drawer = ImageDraw.Draw(base_pic)
     cover_frame = Image.open(f"./material/difficulty_frame/UI_UPE_MusicJacket_Base_"
                              f"{difficulty_file[difficulty]}.png").resize((146, 133))
     base_pic.paste(cover_frame, (101, 73), mask=cover_frame.split()[3])
-    cover_img = Image.open(BytesIO(cover)).resize((103, 103))
+    cover_img = Image.open(BytesIO(fetch_song_cover(id))).resize((103, 103))
     base_pic.paste(cover_img, (123, 89), mask=cover_img.split()[3])
     title_font = ImageFont.truetype("./SourceHanSans_17.ttf", 36, encoding="utf-8")
     limit = lambda text: text if title_font.getsize(text)[0] <= 680 else limit(text[:-1])
@@ -528,3 +518,37 @@ def get_ver_plates(user_in: str):
         return "", f"file://{os.getcwd()}/material/plate_requirement/Lisa/{ver_file[ver]}-lisa.png"
     else:
         return "该版本牌子还没有上线～", ""
+
+
+def cal_single_rating_line(user_in: str) -> str:
+    def _cal_single_rating(i: int, achi: float, inner_level: float) -> int:
+        achi_rank_coef_dict = {"SSS+": 14, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5,
+                               "AAA": 10.5, "AA": 9.5, "A": 8.5, "BBB": 7.5, "BB": 7.0, "B": 6.0,
+                               "C": 5.0, "D": 0}
+        achi_rank_coef_list = tuple(achi_rank_coef_dict.keys())
+        achi = 100.5 if achi > 100.5 else achi
+        return int(achi / 100 * achi_rank_coef_dict[achi_rank_coef_list[i]] * float(inner_level))
+
+    def _rating_to_achievement(i: int, single_rating: int, inner_level: float) -> Any:
+        achi_rank_coef_dict = {"SSS+": 14.0, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5,
+                               "AAA": 10.5, "AA": 9.5, "A": 8.5, "BBB": 7.5, "BB": 7.0, "B": 6.0, "C": 5.0}
+        achi_rank_coef_list = tuple(achi_rank_coef_dict.keys())
+        achie_ranks_list = tuple(achie_ranks.keys())
+        achi_trial = round(single_rating / achi_rank_coef_dict[achi_rank_coef_list[i]] / inner_level * 100, 4)
+        if achie_ranks[achie_ranks_list[i - 1]] > achi_trial >= achie_ranks[achie_ranks_list[i]]:
+            return achi_trial
+        else:
+            return None
+
+    regex = "^单曲(rating|ra) ([0-9]+\.[0-9])"
+    _, inner_level = re.match(regex, user_in.lower()).groups()
+    inner_level = float(inner_level)
+    ans = [(100.5, _cal_single_rating(0, 100.5, inner_level))]
+    for i, achi in enumerate(tuple(achie_ranks.values())[1:6]):
+        sin_ra = _cal_single_rating(i + 1, achi, inner_level)
+        for sin_ra_trial in range(sin_ra + 1, sin_ra + 3):
+            achi_trial = _rating_to_achievement(i + 1, sin_ra_trial, inner_level)
+            if achi_trial:
+                ans.append((achi_trial, sin_ra_trial))
+        ans.append((achi, sin_ra))
+    return f"定数{inner_level}的单曲 rating\n" + "\n".join([f"{ra}: {achi:03.4f}%" for achi, ra in ans])

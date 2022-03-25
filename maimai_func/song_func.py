@@ -148,7 +148,7 @@ def search_by_notes_amount(user_in: str):
 
 
 def search_by_bpm(user_in: str):
-    regex = "(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?"
+    regex = "(BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?"
     _, bpm, page = re.match(regex, user_in.upper()).groups()
     page = 1 if not page else int(page)
     conn = mai_dbpool.connection()
@@ -168,7 +168,7 @@ def select_song(user_in: str):
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
-    cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion,Cover FROM SongInfo WHERE Id={id}")
+    cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion FROM SongInfo WHERE Id={id}")
     res = cursor.fetchone()
     if not res:
         return "好像没有这首歌", ""
@@ -182,14 +182,13 @@ BPM: {res[3]}
 日服版本：{res[6]}
 国服版本：{res[7]}
 等级："""
-    img = Image.open(BytesIO(res[8]))
-    cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty WHERE Id={id} AND Version LIKE '%{version}%'"
+    img = Image.open(BytesIO(fetch_song_cover(id)))
+    cursor.execute(f"SELECT Level,InnerLevel,Version FROM ChartDifficulty WHERE Id={id} AND Version LIKE '%{version}%'"
                    "ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
     res = cursor.fetchall()
     level, inner_level = [data[0] for data in res], [str(data[1]) for data in res]
     msg += ",".join(level)
-    msg += '\n定数：'
-    msg += ",".join(inner_level)
+    msg += "\n定数：" + ",".join(inner_level)
     conn.close()
     return msg, str(image_to_base64(img), encoding="utf-8")
 
@@ -200,7 +199,8 @@ def add_alias_handle(user_in: str):
     alias = alias.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT IGNORE SongAlias (Id,Alias) VALUES (%s,%s)", (id, alias))
+    cursor.execute(f"IF NOT EXISTS (SELECT Alias FROM SongAlias WHERE Alias LIKE '%{alias}%') "
+                   f"INSERT IGNORE SongAlias (Id,Alias) VALUES ({id},'{alias}')")
     conn.commit()
     conn.close()
 

@@ -1,10 +1,8 @@
 LisaBot 目前已实现功能：
 [] 表示需填写内容；() 表示可选填写项；
-目前支持的难度缩写如下
-'bas', 'bsc', '绿', 'basic',
-'adv', '黄', 'advanced',
-'exp', 'ex', '红', 'expert',
-'mas', 'mst', '紫', 'master',
+目前支持的难度缩写如下：
+'bas', 'bsc', '绿', 'basic', 'adv', '黄', 'advanced',
+'exp', 'ex', '红', 'expert', 'mas', 'mst', '紫', 'master',
 'rem', 're:m', '白', 're:master', 'remaster'
 
 查看歌曲信息：id [id]
@@ -40,6 +38,9 @@ LisaBot 目前已实现功能：
 根据某一谱面物量搜索歌曲：物量查歌 [数字] [页码]
 说明：该方式搜索可在末尾添加页码翻页
 用法示例：物量查歌 200
+
+查看谱面达成率和对应单曲 rating：单曲[ra/rating] [定数]
+示例：单曲ra 14.9，单曲rating 1.0
 
 任意随机歌曲：mai什么
 用法示例：明天出勤 mai 什么
@@ -99,23 +100,17 @@ LisaBot 目前已实现功能：
 用法示例：机厅信息 深圳-13，店铺信息 广州-01
 
 根据自定义判定情况计算可能的达成率：达成率范围 [谱面] [非 CP 音符数量]
-说明：[谱面]=[难度][id]，
-        依次输入 Tap Hold Slide Touch Break 的 Great, Good, Miss 自定义数量
+说明：[谱面]=[难度][id]，依次输入 Tap Hold Slide Touch Break 的 Great, Good, Miss 自定义数量
 用法示例：达成率范围 白834 1,1,0 0,0,0 0,0,0 0,0,0 1,1,1,0
 
 计算 BREAK 音符掉落情况：绝赞分布 [谱面] [非 CP 音符数量] [达成率]
-说明：[谱面]=[难度][id]，
-        依次输入 Tap Hold Slide Touch Break 的 Great, Good, Miss 自定义数量
+说明：[谱面]=[难度][id]，依次输入 Tap Hold Slide Touch Break 的 Great, Good, Miss 自定义数量
 用法示例：绝赞分布 紫382 66,13,5 2,0,0 1,1,0 0,0,0 11,1,0,0 97.5900
 
-分析 Rating 组成情况及推荐：Rating/Ra/底分分析
+分析 Rating 组成情况及推荐：[Rating/Ra/底分]分析
 用法示例：底分分析，Ra分析，Rating分析
 
-戳一戳反馈
-
-复读
-
-今日运势
+戳一戳反馈，复读，今日运势
 
 选择器：妈妈/lisa/リサ 推分还是下埋
 说明：选项之间可使用"还是""或者""or"分隔
@@ -132,4 +127,4 @@ LisaBot 目前已实现功能：
 告状：[妈妈/lisa/リサ] [某东西]欺负我
 用法示例：妈妈 交互欺负我，lisa 白潘欺负我
 
-如果有使用问题和错误请联系 琴@993433577
+LisaBot 1.4.4, developed by RINkoTO (QQ@993433577)

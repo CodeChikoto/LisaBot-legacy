@@ -10,7 +10,7 @@ from tools.image import *
 from tools.shared_var import *
 import os
 from functools import lru_cache
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from _thread import allocate_lock, start_new_thread
 
 
@@ -26,15 +26,6 @@ class BestList:
         self.bg_draw = ImageDraw.Draw(self.bg_img)
         self.old_list, self.new_list = [], []
         self.error = ""
-
-    @staticmethod
-    @lru_cache(300)
-    def _fetch_song_cover(id: int):
-        print(f"fetching {id}")
-        conn = mai_dbpool.connection()
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT Cover FROM SongInfo WHERE Id={id}")
-        return cursor.fetchone()[0]
 
     # Nickname, B40 Rating, Rank
     async def get_basic_info(self) -> bool:
@@ -97,21 +88,20 @@ class BestList:
                 lock.acquire()
                 locks_list.append(lock)
                 Process(target=_fill_info, args=(int(clear / cpu_thread_amount * i),
-                                                            int(clear / cpu_thread_amount * (i + 1)),
-                                                            locks_list[i])).run()
+                                                 int(clear / cpu_thread_amount * (i + 1)),
+                                                 locks_list[i])).run()
             while any(lock.locked() for lock in locks_list):
                 pass
             self.old_list.sort(key=lambda x: x["ra"], reverse=True)
             self.new_list.sort(key=lambda x: x["ra"], reverse=True)
-            self.old_list = self.old_list[0:35]
-            self.new_list = self.new_list[0:15]
+            self.old_list, self.new_list = self.old_list[0:35], self.new_list[0:15]
             self.dx_rating = self.rating = sum(chart["ra"] for chart in self.old_list + self.new_list)
             return True
         else:
             self.error = data
             return False
 
-    def draw_list(self, lock1, lock2):
+    def draw_list(self, queue: Queue):
         combo_sync_file = {"fcp": "FCp", "fc": "FC", "ap": "AP", "app": "APp",
                            "fs": "FS", "fsp": "FSp", "fsd": "FSD", "fsdp": "FSDp"}
         achi_rank_file = {"sssp": "SSSp", "sss": "SSS", "ssp": "SSp", "ss": "SS", "sp": "Sp", "s": "S",
@@ -126,8 +116,7 @@ class BestList:
 
         # fetch cover from database, return cover path
         def _draw_cover(id: int, x: int, y: int):
-
-            cover_img = Image.open(BytesIO(self._fetch_song_cover(id))).resize((80, 80))
+            cover_img = Image.open(BytesIO(fetch_song_cover(id))).resize((80, 80))
             self.bg_img.paste(cover_img, (x, y))
 
         # frame outside song cover
@@ -177,7 +166,7 @@ class BestList:
         def _draw_single_rating(single_rating: int, x: int, y: int):
             bg_drawer.text((x, y), f"{single_rating}", "black", sin_rating_font)
 
-        def _draw_old_list(lock):
+        def _draw_old_list(queue: Queue):
             # B25/35
             x_df, y_df = (25, 232) if self.mode == "B40" else (26, 213)
             x_cover, y_cover = (41, 243) if self.mode == "B40" else (42, 224)
@@ -206,9 +195,9 @@ class BestList:
                     _draw_inner_level(chart_info["ds"], x_level + x * x_gap, y_level + y * y_gap)
                     _draw_single_rating(chart_info["ra"], x_sin_rating + x * x_gap, y_sin_rating + y * y_gap)
                     i += 1
-            lock.release()
+            queue.put(1)
 
-        def _draw_new_list(lock):
+        def _draw_new_list(queue: Queue):
             # B15
             x_df, y_df = (25, 872) if self.mode == "B40" else (26, 1023)
             x_cover, y_cover = (41, 884) if self.mode == "B40" else (42, 1034)
@@ -237,13 +226,12 @@ class BestList:
                     _draw_inner_level(chart_info["ds"], x_level + x * x_gap, y_level + y * y_gap)
                     _draw_single_rating(chart_info["ra"], x_sin_rating + x * x_gap, y_sin_rating + y * y_gap)
                     i += 1
-            lock.release()
+            queue.put(1)
 
-        start_new_thread(_draw_old_list, (lock1,))
-        start_new_thread(_draw_new_list, (lock2,))
+        Process(target=_draw_old_list, args=(queue,)).run()
+        Process(target=_draw_new_list, args=(queue,)).run()
 
-    def draw_name_plate(self, lock):
-
+    def draw_name_plate(self, queue: Queue):
         def _draw_dxrating():
             def _specific_frame():
                 if self.dx_rating < 1000:
@@ -345,9 +333,9 @@ class BestList:
         plate_img = Image.open(f"./material/plates/customized/{plate_base}")
         # from server, version plate base
         if self.plate:
-            groups = match(f"({'|'.join(ver for ver in ver_num_list.keys())})"
-                           f"({'|'.join(plate for plate in plate_num_list.keys())})?", self.plate).groups()
-            plate_num = ver_num_list[groups[0]] + plate_num_list[groups[1]] if groups[1] else ver_num_list[groups[0]]
+            groups = match(f"({'|'.join(ver for ver in ver_num_dict.keys())})"
+                           f"({'|'.join(plate for plate in plate_num_dict.keys())})?", self.plate).groups()
+            plate_num = ver_num_dict[groups[0]] + plate_num_dict[groups[1]] if groups[1] else ver_num_dict[groups[0]]
             plate_num += 1 if groups[0] == "真" and groups[1] == "極" else 0
             plate_base = f"{plate_num:06d}.png"
             plate_img = Image.open(f"./material/plates/by_version/UI_Plate_{plate_base}")
@@ -368,7 +356,7 @@ class BestList:
         _draw_name()
         _draw_dxrating()
         self.bg_img.paste(plate_img, (373, 18), mask=plate_img.split()[3])
-        lock.release()
+        queue.put(1)
 
     def get_pic(self):
         return self.bg_img, self.error
@@ -377,14 +365,13 @@ class BestList:
         await self.get_basic_info()
         if self.mode == "B50":
             await self.get_best_50()
-        locks_list = []
-        for i in range(3):
-            locks_list.append(allocate_lock())
-            locks_list[i].acquire()
-        self.draw_list(locks_list[0], locks_list[1])
-        start_new_thread(self.draw_name_plate, (locks_list[2],))
-        while any(lock.locked() for lock in locks_list):
-            pass
+        queue = Queue(maxsize=3)
+        self.draw_list(queue)
+        Process(target=self.draw_name_plate, args=(queue,)).run()
+        count = 0
+        while count != 3:
+            if queue.get():
+                count += 1
         return True
 
 
@@ -394,10 +381,7 @@ async def get_best_pic(user_in: str, user_id: int):
     mode = "B40" if mode == '4' else "B50"
     payload = {"username": username} if username else {"qq": str(user_id)}
     payload["version"] = get_all_request_versions()
-    if mode == "B40":
-        best_list = BestList(payload, "B40")
-    else:
-        best_list = BestList(payload, "B50")
+    best_list = BestList(payload, "B40") if mode == "B40" else BestList(payload, "B50")
     await best_list.generate()
     pic, error = best_list.get_pic()
     return str(image_to_base64(pic), encoding="utf-8"), error
@@ -413,6 +397,7 @@ def set_name_plate(user_in: str, user_id: int) -> str:
         cursor.execute(f"DELETE FROM PlateSetting WHERE QQId={user_id}")
         cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")
         conn.commit()
+        conn.close()
         return "できました！"
     elif f"UI_Plate_{plate_num:06d}.png" in os.listdir("./material/plates/special"):
         if user_id in [993433577, 1826356872, 1873618331]:
@@ -421,6 +406,7 @@ def set_name_plate(user_in: str, user_id: int) -> str:
             cursor.execute(f"DELETE FROM PlateSetting WHERE QQId={user_id}")
             cursor.execute(f"INSERT INTO PlateSetting VALUES ({user_id},{plate_num})")
             conn.commit()
+            conn.close()
             return "できました！"
     else:
         return "好像没有这张姓名框？"
@@ -558,6 +544,7 @@ async def analyze_rating(user_in: str, user_id: int):
                     if (chart[2], chart[1]) not in inlist_chart:
                         ans += [f"{_get_difficulty_short(chart[1])}{chart[0]}  {chart[2]}  {chart[3]}  {aim_achi}% "
                                 f" Rating +{_cal_single_rating(aim_achi, chart[0]) - charts[-1]['ra']}"]
+        conn.close()
         return random.sample(ans, min(4, len(ans)))
 
     def _cal_single_rating(achi: float, inner_level: float) -> int:
