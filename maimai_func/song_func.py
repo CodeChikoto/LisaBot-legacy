@@ -9,18 +9,6 @@ random.seed(2508)
 
 
 def _format_song_list(res: list, page: int) -> str:
-    def _get_difficulty_short(difficulty: str):
-        if difficulty == "Basic":
-            return "BSC"
-        elif difficulty == "Advanced":
-            return "ADV"
-        elif difficulty == "Expert":
-            return "EXP"
-        elif difficulty == "Master":
-            return "MST"
-        elif difficulty == "Re:MASTER":
-            return "REM"
-
     if not res:
         return "没有找到呢"
     total_page = int(ceil(len(res) / 20))
@@ -33,7 +21,7 @@ def _format_song_list(res: list, page: int) -> str:
             msg += f"\n{song[0]}  {song[1]}"
     else:
         for song in res:
-            msg += f"\n{song[0]}  {_get_difficulty_short(song[1])}  {song[2]}"
+            msg += f"\n{song[0]}  {difficulty_short[song[1]]}  {song[2]}"
     return msg
 
 
@@ -103,11 +91,8 @@ def search_by_name(user_in: str):
 
 
 def random_by_aug(user_in: str):
-    try:
-        difficulty, inner_level, level = re.match("^随歌\s?" + difficulty_regex + "([0-9]+\.[0-9])?([0-9]+\+?)?",
-                                                  user_in).groups()
-    except AttributeError:
-        difficulty, inner_level, level = None, None, None
+    difficulty, inner_level, level = re.match("^随歌\s?" + difficulty_regex + "?([0-9]+\.[0-9])?([0-9]+\+?)?",
+                                              user_in).groups()
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
@@ -203,4 +188,3 @@ def add_alias_handle(user_in: str):
                    f"INSERT IGNORE SongAlias (Id,Alias) VALUES ({id},'{alias}')")
     conn.commit()
     conn.close()
-

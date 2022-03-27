@@ -72,7 +72,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         await poke_back.finish(Message([
             {
                 "type": "text",
-                "data": {"text": mom("care")}
+                "data": {"text": mom()}
             }
         ]))
     else:

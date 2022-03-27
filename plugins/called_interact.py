@@ -1,3 +1,4 @@
+import random
 from _thread import start_new_thread
 from sched import scheduler
 import nonebot.matcher
@@ -53,6 +54,7 @@ boom_leave = on_regex(bot_nick_regex + f" (退群|爆炸)", rule=_from_koto)
 manage_blacklist = on_regex(bot_nick_regex + f" (移除|移出|添加|增加|加入)黑名单 ([0-9]+)")
 ignore = on_message(rule=_in_blacklist, priority=1, block=True)
 set_message_rate = on_regex(bot_nick_regex + f" 发言速率 ([0-9]+)", rule=_from_koto)
+ping = on_regex(bot_nick_regex + f" (ping|在么|いますか)", rule=_from_koto)
 
 
 @help_menu.handle()
@@ -219,3 +221,17 @@ async def _(bot: Bot, event: Event, state: T_State):
     _, rate = re.match(regex, str(event.get_message())).groups()
     minute_rate = RequestRate(int(rate), Duration.MINUTE)
     limiter = Limiter(minute_rate, bucket_class=MemoryListBucket)
+
+
+@ping.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    await ping.finish(Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": random.choice(["Pong!", "はい！", "〜"])}
+        }
+    ]))

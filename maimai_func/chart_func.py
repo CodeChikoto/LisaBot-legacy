@@ -144,8 +144,7 @@ def select_chart(user_in: str):
     [_, difficulty, id, version] = re.match(regex, user_in.lower()).groups()
     if not difficulty or difficulty not in difficulty_alias:
         return "难度输入不对哦！", ""
-    version = "舞萌DX 2021" if not version else version
-    version = version.strip().replace("'", "\\'")
+    version = "舞萌DX 2021" if not version else version.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
     cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
@@ -153,8 +152,8 @@ def select_chart(user_in: str):
         return "这是什么大版本呀？", ""
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
     cursor.execute(f"SELECT SI.Title,SI.ChartType,SI.BPM,CI.Id,CI.Difficulty,CI.Charter,CI.Tap,CI.Hold,CI.Slide,"
-                   f"CI.Touch,CI.Break,CD.Level,CD.InnerLevel,CD.Version FROM SongInfo SI LEFT JOIN "
-                   f"ChartInfo CI ON CI.Id=SI.Id LEFT JOIN ChartDifficulty CD ON CI.Difficulty=CD.Difficulty "
+                   f"CI.Touch,CI.Break,CD.Level,CD.InnerLevel,CD.Version FROM SongInfo SI JOIN ChartInfo CI "
+                   f"ON CI.Id=SI.Id JOIN ChartDifficulty CD ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
                    f"WHERE CI.Id={id} AND CI.Difficulty='{difficulty}' AND CD.Version LIKE '%{version}%'")
     res, img_path = cursor.fetchone(), ""
     conn.close()
@@ -179,7 +178,7 @@ Slide: {res[8]}
         msg += f"""Break: {res[10]}
 谱师：{res[5]}
 定级版本：{res[13]}"""
-        img = Image.open(BytesIO(id))
+        img = Image.open(BytesIO(fetch_song_cover(id)))
         return msg, str(image_to_base64(img), encoding="utf-8")
     else:
         return "谱面不存在哟！检查下 ID 或者难度～", ""
@@ -331,14 +330,14 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
                         unfinished_chart.append(chart)
         qu.put(1)
 
-    regex = f"({'|'.join(version_aliases.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
+    regex = f"({'|'.join(version_alias.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
     # ver = 版本，plate = 牌子（含霸者）
     ver, plate, username = re.match(regex, user_in).groups()
     if ver == "真" and plate == "将":
         return "没有真将哦！"
     if plate in ["霸者", "覇者"]:
         ver = "舞"
-    payload = {"version": version_aliases[ver][2]}
+    payload = {"version": version_alias[ver][2]}
     if username:
         payload["username"] = username
     else:
@@ -349,7 +348,7 @@ async def get_plate_process(user_in: str, user_id: int) -> str:
     charts = data["verlist"]
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    version_regex = "','".join(version_aliases[ver][1])
+    version_regex = "','".join(version_alias[ver][1])
     # use ChinaVersion in Table SongInfo
     if ver == '舞':
         cursor.execute(f"SELECT COUNT(DISTINCT SI.Id),COUNT(*) FROM SongInfo SI JOIN ChartDifficulty CD ON SI.Id=CD.Id "
@@ -512,10 +511,11 @@ def get_achi_line(user_in: str):
 def get_ver_plates(user_in: str):
     regex = "^牌子(条件|列表)\s?(.+)?"
     _, ver = re.match(regex, user_in).groups()
-    if ver not in ver_file.keys():
-        return f"使用方法是：牌子条件 [版本简称]\n版本简称包含如下：{'、'.join(ver_file.keys())}", ""
-    if os.path.exists(f"./material/plate_requirement/Lisa/{ver_file[ver]}-lisa.png"):
-        return "", f"file://{os.getcwd()}/material/plate_requirement/Lisa/{ver_file[ver]}-lisa.png"
+    if ver not in plate_ver_file.keys():
+        return f"使用方法是：牌子条件 [版本简称]\n版本简称包含如下：{'、'.join(plate_ver_file.keys())}", ""
+    if os.path.exists(f"./material/plate_requirement/Lisa/{plate_ver_file[ver]}-lisa.png"):
+        return "", str(image_to_base64(Image.open(f"{os.getcwd()}/material/plate_requirement/Lisa/"
+                                                  f"{plate_ver_file[ver]}-lisa.png")), encoding="utf-8")
     else:
         return "该版本牌子还没有上线～", ""
 

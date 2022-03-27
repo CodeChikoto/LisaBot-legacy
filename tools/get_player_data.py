@@ -26,6 +26,6 @@ async def get_player_data(payload: dict, proj: str):
 
 def get_all_request_versions() -> list:
     ans = []
-    for ver_alias in version_aliases.keys():
-        ans += version_aliases[ver_alias][2]
+    for ver_alias in version_alias.keys():
+        ans += version_alias[ver_alias][2]
     return list(set(ans))

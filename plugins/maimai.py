@@ -31,7 +31,7 @@ add_alias = on_regex("^增加别名 ([0-9]+) (.+)", priority=2, block=True)
 achie_list = on_regex("^(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
 level_process = on_regex("^进度 ([0-9]+\+?) " + achie_ranks_regex + "?\s?" + combo_ranks_regex + "?\s?"
                          + sync_ranks_regex + "?\s?(.+)?", priority=2, block=True)
-plate_process = on_regex(f"^({'|'.join(version_aliases.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
+plate_process = on_regex(f"^({'|'.join(version_alias.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
                          , priority=2)
 plate_list = on_regex("^牌子(条件|列表)\s?(.+)?", priority=2, block=True)
 view_name_plate = on_command("view_plates_list", aliases={"查看名牌板", "查看姓名框"}, priority=2, block=True)
@@ -439,8 +439,8 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @plate_list.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text, img_path = get_ver_plates(str(event.get_message()))
-    if img_path:
+    text, img = get_ver_plates(str(event.get_message()))
+    if img:
         msg = Message([
             {
                 "type": "reply",
@@ -448,7 +448,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             },
             {
                 "type": "image",
-                "data": {"file": img_path}
+                "data": {"file": f"base64://{img}"}
             }
         ])
     else:

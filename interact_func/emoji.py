@@ -7,13 +7,12 @@ import random
 
 
 random.seed(2301)
-mom_quotation = {"care": ["どうしたの？", "大丈夫？", "お元気ですか？"],
-                 "sugar": ["ゆきなのこと......", "ゆ～き～な〜"]}
+mom_quotation = ["どうしたの？", "大丈夫？", "お元気ですか？", "ゆきなのこと......", "ゆ～き～な〜", "はいはい〜",
+                 "おクーキーどぞ！", "哇哦～"]
 
 
-def mom(key: str):
-    ans_list = mom_quotation[key]
-    return ans_list[random.randint(0, len(ans_list) - 1)]
+def mom():
+    return random.choice(mom_quotation)
 
 
 def random_emoji(type: str):
