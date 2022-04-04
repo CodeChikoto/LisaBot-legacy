@@ -107,10 +107,10 @@ class BestList:
         achi_rank_file = {"sssp": "SSSp", "sss": "SSS", "ssp": "SSp", "ss": "SS", "sp": "Sp", "s": "S",
                           "aaa": "AAA", "aa": "AA", "a": "A", "bbb": "BBB", "bb": "BB", "b": "B",
                           "c": "C", "d": "D"}
-        title_font = ImageFont.truetype("./SourceHanSans_17.ttf", 20, encoding="utf-8")
-        achi_font = ImageFont.truetype("./Dongqing.otf", 24, encoding="utf-8")
-        level_font = ImageFont.truetype("./Dongqing.otf", 14, encoding="utf-8")
-        sin_rating_font = ImageFont.truetype("./Dongqing.otf", 18, encoding="utf-8")
+        title_font = ImageFont.truetype("./material/typeface/SourceHanSans_17.ttf", 20, encoding="utf-8")
+        achi_font = ImageFont.truetype("./material/typeface/Dongqing.otf", 24, encoding="utf-8")
+        level_font = ImageFont.truetype("./material/typeface/Dongqing.otf", 14, encoding="utf-8")
+        sin_rating_font = ImageFont.truetype("./material/typeface/Dongqing.otf", 18, encoding="utf-8")
         bg_drawer = ImageDraw.Draw(self.bg_img)
         x_gap, y_gap = (375, 120) if self.mode == "B40" else (375, 110)
 
@@ -139,8 +139,9 @@ class BestList:
 
         # 谱面类型
         def _draw_chart_type(chart_type: str, x: int, y: int):
-            chart_type_img = Image.open("./material/UI_TST_Infoicon_DeluxeMode.png").resize((50, 16)) \
-                if chart_type == "DX" else Image.open("./material/UI_TST_Infoicon_StandardMode.png").resize((50, 16))
+            chart_type_img = Image.open("./material/chart_type/UI_TST_Infoicon_DeluxeMode.png").resize((50, 16)) \
+                if chart_type == "DX" else \
+                Image.open("./material/chart_type/UI_TST_Infoicon_StandardMode.png").resize((50, 16))
             self.bg_img.paste(chart_type_img, (x, y), mask=chart_type_img.split()[3])
 
         # 评级
@@ -304,18 +305,18 @@ class BestList:
                 plate_img.paste(num_img, (x, 20), mask=num_img.split()[3])
             _draw_rank_frame() if self.mode == "B40" else None
 
-            note_img = Image.open("./material/UI_CMN_Shougou_Rainbow.png").resize((352, 46))
+            note_img = Image.open("./material/plates/UI_CMN_Shougou_Rainbow.png").resize((352, 46))
             plate_img.paste(note_img, (171, 116), mask=note_img.split()[3])
-            font_note = ImageFont.truetype("./Dongqing.otf", 20, encoding="utf-8")
+            font_note = ImageFont.truetype("./material/typeface/Dongqing.otf", 20, encoding="utf-8")
             rating_note = f"B40:  {self.rating} + {self.rank_rating}" if self.mode == "B40" else "Best 50 Simulation"
             len_x = font_note.getsize(rating_note)[0]
             plate_draw.text((171 + int((352 - len_x) / 2), 127), rating_note, "white", font=font_note,
                             stroke_width=2, stroke_fill="black")
 
         def _draw_name():
-            white_frame_img = Image.open("./material/UI_WhiteFrame.png").resize((345, 59))
+            white_frame_img = Image.open("./material/plates/UI_WhiteFrame.png").resize((345, 59))
             plate_img.paste(white_frame_img, (174, 59), mask=white_frame_img.split()[3])
-            name_font = ImageFont.truetype("./SourceHanSans_17.ttf", 30, encoding="utf-8")
+            name_font = ImageFont.truetype("./material/typeface/SourceHanSans_17.ttf", 30, encoding="utf-8")
             nickname = ' '.join(self.nickname)
             limit = lambda text: text if name_font.getsize(text)[0] <= 271 else limit(text[:-1])
             nickname = limit(nickname)
@@ -324,7 +325,7 @@ class BestList:
                 try:
                     data = requests.get(f'http://q1.qlogo.cn/g?b=qq&nk={self.payload["qq"]}&s=640')
                     head_img = Image.open(BytesIO(data.content)).resize((143, 143))
-                    head_img_mask = Image.open(f"./material/UI_Icon_000001.png").resize((143, 143))
+                    head_img_mask = Image.open(f"./material/plates/UI_Icon_000001.png").resize((143, 143))
                     plate_img.paste(head_img, (12, 9), mask=head_img_mask)
                 finally:
                     pass
@@ -569,17 +570,17 @@ async def analyze_rating(user_in: str, user_id: int):
     text = f"{data['nickname']} 的 Rating 组成如下：\n\n"
     if old_list:
         text += f"B25 Rating 总计为{sum([chart['ra'] for chart in old_list])}\n" \
-                f"最高分{data['charts']['sd'][0]['ra']}，相当于" \
+                f"最高分{data['charts']['sd'][0]['ra']}，相当于 " \
                 f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(old_list[0]['ra'])])}\n" \
-                f"最低分{data['charts']['sd'][-1]['ra']}，相当于" \
+                f"最低分{data['charts']['sd'][-1]['ra']}，相当于 " \
                 f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(old_list[-1]['ra'])])}\n"
         text += _advice(old_list, "B25")
         text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(old_list, "B25")) + "\n\n"
     if new_list:
         text += f"B15 Rating 总计为{sum([chart['ra'] for chart in new_list])}\n" \
-                f"最高分{data['charts']['dx'][0]['ra']}，相当于" \
+                f"最高分{data['charts']['dx'][0]['ra']}，相当于 " \
                 f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(new_list[0]['ra'])])}\n" \
-                f"最低分{data['charts']['dx'][-1]['ra']}，相当于" \
+                f"最低分{data['charts']['dx'][-1]['ra']}，相当于 " \
                 f"{' / '.join([f'{level} {achi}%' for achi, level in _rating_to_inner_level(new_list[-1]['ra'])])}\n"
         text += _advice(new_list, "B15")
         text += f"随机推荐推分（仅供参考）：\n" + "\n".join(_recommand(new_list, "B15")) + "\n\n"

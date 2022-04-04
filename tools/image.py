@@ -4,7 +4,7 @@ from PIL import ImageFont, ImageDraw, Image
 
 
 # path = 'src/static/high_eq_image.png'
-fontpath = "sarasa-monoslab-tc-bold.ttf"
+fontpath = "./material/typeface/sarasa-mono-slab-sc-regular.ttf"
 
 
 def draw_text(img_pil, text, offset_x):

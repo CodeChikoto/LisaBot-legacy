@@ -33,24 +33,24 @@ difficulty_file = {"Basic": "BSC", "Advanced": "ADV", "Expert": "EXP", "Master":
 chart_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")([0-9]+)"
 difficulty_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")"
 
-# [0] match Koto's database (JapanVer), [1] match Koto's database (ChinaVer), [2] match diving-fish databse
-version_alias = {'真': [['maimai', 'maimai PLUS'], ['maimai', 'maimai PLUS'], ['maimai', 'maimai PLUS']],
-                 '超': [['maimai GreeN'], ['maimai GreeN'], ['maimai GreeN']],
-                 '檄': [['maimai GreeN PLUS'], ['maimai GreeN PLUS'], ['maimai GreeN PLUS']],
-                 '橙': [['maimai ORANGE'], ['maimai ORANGE'], ['maimai ORANGE']],
-                 '暁': [['maimai ORANGE PLUS'], ['maimai ORANGE PLUS'], ['maimai ORANGE PLUS']],
-                 '晓': [['maimai ORANGE PLUS'], ['maimai ORANGE PLUS'], ['maimai ORANGE PLUS']],
-                 '桃': [['maimai PiNK'], ['maimai PiNK'], ['maimai PiNK']],
-                 '櫻': [['maimai PiNK PLUS'], ['maimai PiNK PLUS'], ['maimai PiNK PLUS']],
-                 '樱': [['maimai PiNK PLUS'], ['maimai PiNK PLUS'], ['maimai PiNK PLUS']],
-                 '紫': [['maimai MURASAKi'], ['maimai MURASAKi'], ['maimai MURASAKi']],
-                 '菫': [['maimai MURASAKi PLUS'], ['maimai MURASAKi PLUS'], ['maimai MURASAKi PLUS']],
-                 '堇': [['maimai MURASAKi PLUS'], ['maimai MURASAKi PLUS'], ['maimai MURASAKi PLUS']],
-                 '白': [['maimai MiLK'], ['maimai MiLK'], ['maimai MiLK']],
-                 '雪': [['maimai MiLK PLUS'], ['maimai MiLK PLUS'], ['MiLK PLUS']],
-                 '輝': [['maimai FiNALE'], ['maimai FiNALE'], ['maimai FiNALE']],
-                 '辉': [['maimai FiNALE'], ['maimai FiNALE'], ['maimai FiNALE']],
-                 '舞': [[], [], []]}
+# [0] match Koto's database (JapanVer), [1] match Koto's database (ChinaVer), [2] match diving-fish databse, [3]
+version_alias = {'真': [['maimai', 'maimaiPLUS'], ['maimai', 'maimaiPLUS'], ['maimai', 'maimai PLUS'], 1 << 0],
+                 '超': [['GreeN'], ['GreeN'], ['maimai GreeN'], 1 << 1],
+                 '檄': [['GreeNPLUS'], ['GreeNPLUS'], ['maimai GreeN PLUS'], 1 << 2],
+                 '橙': [['ORANGE'], ['ORANGE'], ['ORANGE'], 1 << 3],
+                 '暁': [['ORANGEPLUS'], ['ORANGEPLUS'], ['maimai ORANGE PLUS'], 1 << 4],
+                 '晓': [['ORANGEPLUS'], ['ORANGEPLUS'], ['maimai ORANGE PLUS'], 1 << 4],
+                 '桃': [['PiNK'], ['PiNK'], ['maimai PiNK'], 1 << 5],
+                 '櫻': [['PiNKPLUS'], ['PiNKPLUS'], ['maimai PiNK PLUS'], 1 << 6],
+                 '樱': [['PiNKPLUS'], ['PiNKPLUS'], ['maimai PiNK PLUS'], 1 << 6],
+                 '紫': [['MURASAKi'], ['MURASAKi'], ['maimai MURASAKi'], 1 << 7],
+                 '菫': [['MURASAKiPLUS'], ['MURASAKiPLUS'], ['maimai MURASAKi PLUS'], 1 << 8],
+                 '堇': [['MURASAKiPLUS'], ['MURASAKiPLUS'], ['maimai MURASAKi PLUS'], 1 << 8],
+                 '白': [['MiLK'], ['MiLK'], ['maimai MiLK'], 1 << 9],
+                 '雪': [['MiLKPLUS'], ['MiLKPLUS'], ['MiLK PLUS'], 1 << 10],
+                 '輝': [['FiNALE'], ['FiNALE'], ['maimai FiNALE'], 1 << 11],
+                 '辉': [['FiNALE'], ['FiNALE'], ['maimai FiNALE'], 1 << 11],
+                 '舞': [[], [], [], 1 << 12]}
 for ver_ori in version_alias.values():
     version_alias['舞'][0] += ver_ori[0]
     version_alias['舞'][1] += ver_ori[1]
@@ -59,11 +59,11 @@ version_alias['舞'][0] = list(set(version_alias['舞'][0]))
 version_alias['舞'][1] = list(set(version_alias['舞'][1]))
 version_alias['舞'][2] = list(set(version_alias['舞'][2]))
 version_alias.update({
-    '熊': [['maimai DX'], ['舞萌DX'], ['maimai でらっくす']],
-    '華': [['maimai DX PLUS'], ['舞萌DX'], ['maimai でらっくす']],
-    '华': [['maimai DX PLUS'], ['舞萌DX'], ['maimai でらっくす']],
-    '爽': [['maimai DX Splash'], ['舞萌DX 2021'], ['maimai でらっくす Splash']],
-    '煌': [['maimai DX Splash PLUS'], ['舞萌DX 2021'], ['maimai でらっくす Splash PLUS']]
+    '熊': [['maimaDX'], ['舞萌DX'], ['maimai でらっくす'], 1 << 13],
+    '華': [['maimaDXPLUS'], ['舞萌DX'], ['maimai でらっくす'], 1 << 13],
+    '华': [['maimaDXPLUS'], ['舞萌DX'], ['maimai でらっくす'], 1 << 13],
+    '爽': [['Splash'], ['舞萌DX 2021'], ['maimai でらっくす Splash'], 1 << 14],
+    '煌': [['SplashPLUS'], ['舞萌DX 2022'], ['maimai でらっくす Splash PLUS'], 1 << 15]
 })
 ver_num_dict = {
     "真": 6100,
@@ -138,13 +138,13 @@ sync_ranks_regex = sync_ranks_regex.replace('+', '\+')
 sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
 
 mai_dbpool = PooledDB(creator=pymysql, maxconnections=240, mincached=5, maxcached=None, blocking=True,
-                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
+                      maxusage=None, ping=4, host="39.106.184.73", port=3306, user="anyone", password="UnpublicData",
                       database="maimai", charset="utf8")
 player_dbpool = PooledDB(creator=pymysql, maxconnections=20, mincached=2, maxcached=None, blocking=True,
-                         maxusage=None, ping=5, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
+                         maxusage=None, ping=5, host="39.106.184.73", port=3306, user="anyone", password="UnpublicData",
                          database="Player", charset="utf8")
 quotation_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=3, maxcached=None, blocking=True,
-                            maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone",
+                            maxusage=None, ping=4, host="39.106.184.73", port=3306, user="anyone",
                             password="UnpublicData", database="Quotations", charset="utf8")
 
 mute_list = []

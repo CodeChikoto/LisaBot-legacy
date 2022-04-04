@@ -20,7 +20,7 @@ def random_emoji(type: str):
     cursor = conn.cursor()
     cursor.execute(f"SELECT Image FROM Emoji WHERE Type LIKE '{type}'")
     res = cursor.fetchall()
-    img = random.choice(res)
+    [img] = random.choice(res)
     return str(image_to_base64(Image.open(BytesIO(img))), encoding="utf-8")
 
 
