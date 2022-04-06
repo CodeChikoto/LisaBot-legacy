@@ -37,7 +37,7 @@ difficulty_regex = r"(" + r"|".join(difficulty_alias.keys()).lower() + r")"
 version_alias = {'真': [['maimai', 'maimaiPLUS'], ['maimai', 'maimaiPLUS'], ['maimai', 'maimai PLUS'], 1 << 0],
                  '超': [['GreeN'], ['GreeN'], ['maimai GreeN'], 1 << 1],
                  '檄': [['GreeNPLUS'], ['GreeNPLUS'], ['maimai GreeN PLUS'], 1 << 2],
-                 '橙': [['ORANGE'], ['ORANGE'], ['ORANGE'], 1 << 3],
+                 '橙': [['ORANGE'], ['ORANGE'], ['maimai ORANGE'], 1 << 3],
                  '暁': [['ORANGEPLUS'], ['ORANGEPLUS'], ['maimai ORANGE PLUS'], 1 << 4],
                  '晓': [['ORANGEPLUS'], ['ORANGEPLUS'], ['maimai ORANGE PLUS'], 1 << 4],
                  '桃': [['PiNK'], ['PiNK'], ['maimai PiNK'], 1 << 5],
@@ -138,13 +138,13 @@ sync_ranks_regex = sync_ranks_regex.replace('+', '\+')
 sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
 
 mai_dbpool = PooledDB(creator=pymysql, maxconnections=240, mincached=5, maxcached=None, blocking=True,
-                      maxusage=None, ping=4, host="39.106.184.73", port=3306, user="anyone", password="UnpublicData",
+                      maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
                       database="maimai", charset="utf8")
 player_dbpool = PooledDB(creator=pymysql, maxconnections=20, mincached=2, maxcached=None, blocking=True,
-                         maxusage=None, ping=5, host="39.106.184.73", port=3306, user="anyone", password="UnpublicData",
+                         maxusage=None, ping=5, host="127.0.0.1", port=3306, user="anyone", password="UnpublicData",
                          database="Player", charset="utf8")
 quotation_dbpool = PooledDB(creator=pymysql, maxconnections=10, mincached=3, maxcached=None, blocking=True,
-                            maxusage=None, ping=4, host="39.106.184.73", port=3306, user="anyone",
+                            maxusage=None, ping=4, host="127.0.0.1", port=3306, user="anyone",
                             password="UnpublicData", database="Quotations", charset="utf8")
 
 mute_list = []
