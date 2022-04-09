@@ -142,12 +142,48 @@ def cal_break_dist(user_in: str):
 
 def select_chart(user_in: str):
     global difficulty_alias, chart_regex
-    regex = "(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?"
-    [_, difficulty, id, level_ver] = re.match(regex, user_in.lower()).groups()
+    regex = "ma?i?chart " + difficulty_regex + "([0-9]+)\s?(.+)?"
+    difficulty, id, version = re.match(regex, user_in.lower()).groups()
     if not difficulty or difficulty not in difficulty_alias:
         return "难度输入不对哦！", ""
-    level_ver = "舞萌DX 2021" if not level_ver else level_ver.strip().replace("'", "\\'")
-    return maimai_func.song_func.select_song_chart(f"id {id} {level_ver}")
+    version = "舞萌DX 2021" if not version else version.strip().replace("'", "\\'")
+    conn = mai_dbpool.connection()
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
+    if cursor.fetchone()[0] != 1:
+        return "这是什么大版本呀？", ""
+    difficulty = difficulty_alias[difficulty] if difficulty else '%'
+    cursor.execute(f"SELECT SI.Title,SI.ChartType,SI.BPM,CI.Id,CI.Difficulty,CI.Charter,CI.Tap,CI.Hold,CI.Slide,"
+                   f"CI.Touch,CI.Break,CD.Level,CD.InnerLevel,CD.Version FROM SongInfo SI JOIN ChartInfo CI "
+                   f"ON CI.Id=SI.Id JOIN ChartDifficulty CD ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
+                   f"WHERE CI.Id={id} AND CI.Difficulty='{difficulty}' AND CD.Version LIKE '%{version}%'")
+    res, img_path = cursor.fetchone(), ""
+    conn.close()
+    if not res:
+        return "谱面不存在哟！检查下 ID 或者难度～", ""
+    if res:
+        msg = f"""
+标题：{res[0]}
+ID: {res[3]}
+谱面类型：{res[1]}
+BPM: {res[2]}
+难度：{res[4]}
+等级：{res[11]}
+定数：{res[12]}
+Tap: {res[6]}
+Hold: {res[7]}
+Slide: {res[8]}
+"""
+        if res[9]:
+            msg += f"""Touch: {res[9]}
+"""
+        msg += f"""Break: {res[10]}
+谱师：{res[5]}
+定级版本：{res[13]}"""
+        img = Image.open(BytesIO(fetch_song_cover(id)))
+        return msg, str(image_to_base64(img), encoding="utf-8")
+    else:
+        return "谱面不存在哟！检查下 ID 或者难度～", ""
 
 
 def random_chart(user_in: str):

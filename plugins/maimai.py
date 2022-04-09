@@ -17,8 +17,10 @@ inner_level_search = on_regex("^定数查歌 " + difficulty_regex + "?([0-9]{1,2
 level_search = on_regex("^等级查歌 " + difficulty_regex + "?([0-9]+\+?)\s?([0-9]+)?", priority=2, block=True)
 name_search = on_regex("^(search|查歌|搜索) (.+)$", priority=2, block=True)
 artist_search = on_regex("^(曲师|艺术家|歌手)查歌 (.+)", priority=2, block=True)
-view_song = on_regex("^id ([0-9]+)\s?(.+)?", priority=2, block=True)
-view_chart = on_regex("^(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?", priority=2, block=True)
+view_song_chart = on_regex("^id ([0-9]+)\s?(.+)?", priority=2, block=True)
+view_song = on_regex("^ma?i?song ([0-9]+)\s?(.+)?", priority=2, block=True)
+view_chart = on_regex("^ma?i?chart " + difficulty_regex + "([0-9]+)\s?(.+)?", priority=2, block=True)
+view_chart_old = on_regex("^(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?", priority=2, block=True)
 mai_what = on_regex(r".*mai\s?什么", priority=2, block=True)
 which_is = on_regex("^(.+)是什么歌\s?([0-9]+)?$", priority=2, block=True)
 achie_range = on_regex(f"^达成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
@@ -42,7 +44,7 @@ plate_list = on_regex("^牌子(条件|列表)\s?(.+)?", priority=2, block=True)
 view_name_plate = on_command("view_plates_list", aliases={"查看名牌板", "查看姓名框"}, priority=2, block=True)
 custom_name_plate = on_regex("^设置姓名框 ([0-9]+)", priority=2, block=True)
 notes_search = on_regex("^物量查歌 ([0-9]+)\s?([0-9]+)?", priority=2, block=True)
-bpm_search = on_regex("^(BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?", priority=2, block=True)
+bpm_search = on_regex("^(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?", priority=2, block=True)
 rating_analyzation = on_regex("^(底分|Ra|Rating)分析", priority=2, block=True)
 achi_line = on_regex("^(达成率|分数)线 " + difficulty_regex + "([0-9]+)\s?(0\+|100|101\-)?\s?(.+)?",
                      priority=2, block=True)
@@ -113,10 +115,42 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @view_song.handle()
 async def _(bot: Bot, event: Event, state: T_State):
+    text, img = select_song(str(event.get_message()))
+    try:
+        if img:
+            await view_song_chart.send(Message([
+                {
+                    "type": "reply",
+                    "data": {"id": event.message_id}
+                },
+                {
+                    "type": "image",
+                    "data": {"file": f"base64://{img}"}
+                },
+                {
+                    "type": "text",
+                    "data": {"text": text}
+                }
+            ]))
+    except CQHTTPAdapterException:
+        await view_song_chart.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": "好像风控了，请稍后尝试并联系机修。"}
+            }
+        ]))
+
+
+@view_song_chart.handle()
+async def _(bot: Bot, event: Event, state: T_State):
     text, img = select_song_chart(str(event.get_message()))
     try:
         if img:
-            await view_song.send(Message([
+            await view_song_chart.send(Message([
                 {
                     "type": "reply",
                     "data": {"id": event.message_id}
@@ -127,7 +161,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 }
             ]))
         else:
-            await view_song.send(Message([
+            await view_song_chart.send(Message([
                 {
                     "type": "reply",
                     "data": {"id": event.message_id}
@@ -137,7 +171,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                     "data": {"text": text}
                 }]))
     except CQHTTPAdapterException:
-        await view_song.send(Message([
+        await view_song_chart.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -177,9 +211,23 @@ async def _(bot: Bot, event: Event, state: T_State):
             }]))
 
 
+@view_chart_old.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    await view_chart.send(Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": "歌曲信息和谱面信息已合并显示，直接使用 id *** 即可查看。"
+                             "如果需要文字版歌曲信息或谱面信息，请使用 msong *** 和 mchart ***～"}
+        }]))
+
+
 @mai_what.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text, img = random_by_aug("")
+    text, img = random_by_aug("随歌")
     if img:
         final_msg = Message([
             {
@@ -377,7 +425,7 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @add_alias.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    add_alias_handle(str(event.get_message()))
+    text = add_alias_handle(str(event.get_message()))
     await add_alias.finish(Message([
         {
             "type": "reply",
@@ -385,7 +433,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         },
         {
             "type": "text",
-            "data": {"text": "わかった！"}
+            "data": {"text": text}
         }
     ]))
 
@@ -677,5 +725,5 @@ async def _(bot: Bot, event: Event, state: T_State):
         },
         {
             "type": "text",
-            "data": {"text": text}
+            "data": {"text_file": text}
         }]))

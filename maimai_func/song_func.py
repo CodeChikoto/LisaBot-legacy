@@ -133,7 +133,7 @@ def search_by_notes_amount(user_in: str):
 
 
 def search_by_bpm(user_in: str):
-    regex = "(BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?"
+    regex = "(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?"
     _, bpm, page = re.match(regex, user_in.upper()).groups()
     page = 1 if not page else int(page)
     conn = mai_dbpool.connection()
@@ -145,7 +145,7 @@ def search_by_bpm(user_in: str):
 
 
 def select_song_chart(user_in: str):
-    [id, version] = re.match("id ([0-9]+)\s?(.+)?", user_in).groups()
+    [id, version] = re.match("^id ([0-9]+)\s?(.+)?", user_in).groups()
     id = int(id)
     level_ver = "舞萌DX 2021" if not version else version.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
@@ -204,16 +204,51 @@ def select_song_chart(user_in: str):
     return "", str(image_to_base64(base_img), encoding="utf-8")
 
 
+def select_song(user_in: str):
+    [id, version] = re.match("^ma?i?song ([0-9]+)\s?(.+)?", user_in).groups()
+    version = "舞萌DX 2021" if not version else version
+    version = version.strip().replace("'", "\\'")
+    conn = mai_dbpool.connection()
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
+    if cursor.fetchone()[0] != 1:
+        return "这是什么大版本呀？", ""
+    cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion FROM SongInfo WHERE Id={id}")
+    res = cursor.fetchone()
+    if not res:
+        return "好像没有这首歌", ""
+    text = f"""
+ID: {res[0]}
+标题：{res[1]}
+艺术家：{res[2]}
+BPM: {res[3]}
+谱面类型：{res[4]}
+分类：{res[5]}
+日服版本：{res[6]}
+国服版本：{res[7]}
+等级："""
+    img = Image.open(BytesIO(fetch_song_cover(id)))
+    cursor.execute(f"SELECT Level,InnerLevel,Version FROM ChartDifficulty WHERE Id={id} AND Version LIKE '%{version}%'"
+                   "ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
+    res = cursor.fetchall()
+    level, inner_level = [data[0] for data in res], [str(data[1]) for data in res]
+    text += ",".join(level)
+    text += "\n定数：" + ",".join(inner_level)
+    conn.close()
+    return text, str(image_to_base64(img), encoding="utf-8")
+
+
 def add_alias_handle(user_in: str):
     regex = "增加别名 ([0-9]+) (.+)"
     [id, alias] = re.match(regex, user_in).groups()
     alias = alias.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"INSERT IGNORE SongAlias (Id,Alias) SELECT {id},'{alias}' FROM dual "
-                   f"WHERE NOT EXISTS (SELECT Alias FROM SongAlias WHERE Alias LIKE '%{alias}%')")
+    res = cursor.execute(f"INSERT IGNORE SongAlias (Id,Alias) SELECT {id},'{alias}' FROM DUAL "
+                         f"WHERE NOT EXISTS (SELECT Alias FROM SongAlias WHERE Alias LIKE '%{alias}%')")
     conn.commit()
     conn.close()
+    return "わかった！" if res else "别名已存在或 ID 不存在呢～"
 
 
 def show_alias_handle(user_in: str):
@@ -232,9 +267,10 @@ def show_alias_handle(user_in: str):
 def delete_alias_handle(user_in: str):
     regex = "删除别名 ([0-9]+) (.+)"
     [id, alias] = re.match(regex, user_in).groups()
+    alias = alias.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"DELETE FROM SongAlias WHERE Id={id} AND Alias='{alias}'")
+    res = cursor.execute(f"DELETE FROM SongAlias WHERE Id={id} AND Alias='{alias}'")
     conn.commit()
     conn.close()
-    return "オーケー"
+    return "オーケー" if res else "删除失败！"

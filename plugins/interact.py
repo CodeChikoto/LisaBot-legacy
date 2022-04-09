@@ -165,8 +165,9 @@ async def _(bot: Bot, event: Event, state: T_State):
     msg = event.get_message()
     groups_list = await bot.get_group_list()
     for group in groups_list:
-        await bot.send_group_msg(group_id=group["group_id"], message=msg)
-        time.sleep(3)
+        await bot.send_group_msg(group_id=group["group_id"],
+                                 message=f"{time.strftime('%H:%M:%S')}给\"{group['group_name']}\"的推送消息：\n" + msg)
+        time.sleep(random.randint(2, 5))
 
 
 @unmute_koto.handle()

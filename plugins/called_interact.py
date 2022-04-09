@@ -62,7 +62,7 @@ async def _(bot: Bot, event: Event, state: T_State):
     await help_menu.finish(Message([{
         "type": "image",
         "data": {
-            "file": f"base64://{str(image_to_base64(text_to_image(open('text/help', 'r').read())), encoding='utf-8')}"
+            "file": f"base64://{str(image_to_base64(text_to_image(open('text_file/help', 'r').read())), encoding='utf-8')}"
         }
     },
     ]))
