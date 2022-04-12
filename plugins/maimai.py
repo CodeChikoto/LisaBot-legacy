@@ -646,7 +646,7 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @achi_line.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    img, text = get_achi_line(str(event.get_message()))
+    text, img = get_achi_line(str(event.get_message()))
     if text:
         await achi_line.send(Message([
             {
@@ -725,5 +725,5 @@ async def _(bot: Bot, event: Event, state: T_State):
         },
         {
             "type": "text",
-            "data": {"text_file": text}
+            "data": {"text": text}
         }]))

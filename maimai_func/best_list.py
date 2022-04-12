@@ -441,12 +441,12 @@ async def analyze_rating(user_in: str, user_id: int):
                     (6.0 <= inner_level_trial <= 15.0 or inner_level_trial in inner_level_list):
                 ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial, 1)))
             elif single_rating_trial > single_rating and \
-                    (6.0 <= inner_level_trial <= 15.0 or inner_level_trial - 0.1 in inner_level_list) and \
+                    (6.0 <= inner_level_trial - 0.1 <= 15.0 or inner_level_trial - 0.1 in inner_level_list) and \
                     int((inner_level_trial - 0.1) * achi_rank_coef[achi_rank_trial]
                         * achie_ranks[achi_rank_trial] / 100) == single_rating:
                 ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial - 0.1)))
             elif single_rating_trial < single_rating and \
-                    (6.0 <= inner_level_trial <= 15.0 or inner_level_trial + 0.1 in inner_level_list) and \
+                    (6.0 <= inner_level_trial + 0.1 <= 15.0 or inner_level_trial + 0.1 in inner_level_list) and \
                     int((inner_level_trial + 0.1) * achi_rank_coef[achi_rank_trial]
                         * achie_ranks[achi_rank_trial] / 100) == single_rating:
                 ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial + 0.1, 1)))

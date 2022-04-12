@@ -150,7 +150,7 @@ def select_song_chart(user_in: str):
     level_ver = "舞萌DX 2021" if not version else version.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    if cursor.execute(f"SELECT DISTINCT Version FROM ChartDifficulty WHERE Version LIKE '%{level_ver}%'") != 1:
+    if cursor.execute(f"SELECT DISTINCT Version FROM ChartDifficulty WHERE Version='{level_ver}'") != 1:
         return "输入的大版本好像不太明确？", ""
     [level_ver] = cursor.fetchone()
     exist = cursor.execute(f"SELECT Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion FROM SongInfo WHERE Id={id}")
@@ -169,7 +169,7 @@ def select_song_chart(user_in: str):
     chart_type_img = Image.open("./material/chart_type/UI_TST_Infoicon_DeluxeMode.png").resize((100, 32)) \
         if chart_type == "DX" \
         else Image.open("./material/chart_type/UI_TST_Infoicon_StandardMode.png").resize((100, 32))
-    base_img.paste(cover_img, (123, 89), mask=cover_img.split()[3])
+    base_img.paste(cover_img, (123, 89))
     base_img.paste(chart_type_img, (260, 170), mask=chart_type_img.split()[3])
     limit = lambda text: text if bold36.getsize(text)[0] <= 684 else limit(text[:-1])
     title = limit(title)
@@ -210,7 +210,7 @@ def select_song(user_in: str):
     version = version.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
+    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version='{version}'")
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
     cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion FROM SongInfo WHERE Id={id}")
@@ -228,7 +228,7 @@ BPM: {res[3]}
 国服版本：{res[7]}
 等级："""
     img = Image.open(BytesIO(fetch_song_cover(id)))
-    cursor.execute(f"SELECT Level,InnerLevel,Version FROM ChartDifficulty WHERE Id={id} AND Version LIKE '%{version}%'"
+    cursor.execute(f"SELECT Level,InnerLevel,Version FROM ChartDifficulty WHERE Id={id} AND Version='{version}'"
                    "ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
     res = cursor.fetchall()
     level, inner_level = [data[0] for data in res], [str(data[1]) for data in res]

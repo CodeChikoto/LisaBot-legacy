@@ -55,6 +55,7 @@ manage_blacklist = on_regex(bot_nick_regex + f" (移除|移出|添加|增加|加
 ignore = on_message(rule=_in_blacklist, priority=1, block=True)
 set_message_rate = on_regex(bot_nick_regex + f" 发言速率 ([0-9]+)", rule=_from_koto)
 ping = on_regex(bot_nick_regex + f" (ping|在么|いますか)", rule=_from_koto)
+nat_test = on_regex(bot_nick_regex + f" (核酸检测|nat|NAT|做核酸)", priority=2)
 
 
 @help_menu.handle()
@@ -235,3 +236,18 @@ async def _(bot: Bot, event: Event, state: T_State):
             "data": {"text": random.choice(["Pong!", "はい！", "〜"])}
         }
     ]))
+
+
+@nat_test.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    await nat_test.finish(Message([
+        {
+            "type": "reply",
+            "data": {"id": event.message_id}
+        },
+        {
+            "type": "text",
+            "data": {"text": random.choice(["张嘴～", "啊～", "来〜"])}
+        }
+    ])
+)

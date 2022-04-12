@@ -149,14 +149,14 @@ def select_chart(user_in: str):
     version = "舞萌DX 2021" if not version else version.strip().replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
+    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version='{version}'")
     if cursor.fetchone()[0] != 1:
         return "这是什么大版本呀？", ""
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
     cursor.execute(f"SELECT SI.Title,SI.ChartType,SI.BPM,CI.Id,CI.Difficulty,CI.Charter,CI.Tap,CI.Hold,CI.Slide,"
                    f"CI.Touch,CI.Break,CD.Level,CD.InnerLevel,CD.Version FROM SongInfo SI JOIN ChartInfo CI "
                    f"ON CI.Id=SI.Id JOIN ChartDifficulty CD ON CI.Id=CD.Id AND CI.Difficulty=CD.Difficulty "
-                   f"WHERE CI.Id={id} AND CI.Difficulty='{difficulty}' AND CD.Version LIKE '%{version}%'")
+                   f"WHERE CI.Id={id} AND CI.Difficulty='{difficulty}' AND CD.Version='{version}'")
     res, img_path = cursor.fetchone(), ""
     conn.close()
     if not res:
@@ -415,18 +415,18 @@ def get_achi_line(user_in: str):
     version = "舞萌DX 2021" if not version else version
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version LIKE '%{version}%'")
+    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version='{version}'")
     if cursor.fetchone()[0] != 1:
-        return "这是什么大版本呀？", ""
+        return "这是什么大版本呀？", None
     if not difficulty or difficulty not in difficulty_alias:
-        return "难度输入不对哦！", ""
+        return "难度输入不对哦！", None
     difficulty = difficulty_alias[difficulty]
     mode = "101-" if not mode else mode
     cursor.execute(f"SELECT Tap,Hold,Slide,Touch,Break FROM ChartInfo "
                    f"WHERE Difficulty='{difficulty}' AND Id={id}")
     chart_data = cursor.fetchone()
     if not chart_data:
-        return "谱面不存在哦！", ""
+        return "谱面不存在哦！", None
     conn.close()
     total_base, total_ex = 1 * chart_data[0] + 2 * chart_data[1] + 3 * chart_data[2] + 5 * chart_data[4] + \
                            (0 if not chart_data[3] else 1 * chart_data[3]), chart_data[4]
@@ -467,11 +467,11 @@ def get_achi_line(user_in: str):
                     -3 / total_base * 100 + 0.3 / total_ex, -5 / total_base * 100])
     cursor.execute(f"SELECT SI.Title,CD.InnerLevel FROM SongInfo SI LEFT JOIN ChartDifficulty CD "
                    f"ON SI.Id=CD.Id WHERE SI.Id={id} AND CD.Difficulty='{difficulty}' AND "
-                   f"CD.Version LIKE '%{version}%'")
+                   f"CD.Version='{version}'")
     try:
         title, inner_level = cursor.fetchone()
     except TypeError:
-        return "谱面不存在哦～", ""
+        return "谱面不存在哦～", None
     base_drawer = ImageDraw.Draw(base_pic)
     cover_frame = Image.open(f"./material/difficulty_frame/UI_UPE_MusicJacket_Base_"
                              f"{difficulty_file[difficulty]}.png").resize((146, 133))
@@ -520,7 +520,7 @@ def get_achi_line(user_in: str):
     for (i, x), break_equal in zip(enumerate((274, 385, 494, 604, 714, 824, 934)), break_equal_list):
         base_drawer.text((x - int(great_font.getsize(f"{break_equal:.4f}")[0] / 2), 930), f"{break_equal:.4f}",
                          "#083060", font=great_font)
-    return str(image_to_base64(base_pic), encoding="utf-8"), ""
+    return "", str(image_to_base64(base_pic), encoding="utf-8")
 
 
 # return: text, image path
@@ -564,7 +564,7 @@ def cal_single_rating_line(user_in: str) -> str:
     ans = [(100.5, _cal_single_rating(0, 100.5, inner_level))]
     for i, achi in enumerate(tuple(achie_ranks.values())[1:6]):
         sin_ra = _cal_single_rating(i + 1, achi, inner_level)
-        for sin_ra_trial in range(sin_ra + 1, sin_ra + 3):
+        for sin_ra_trial in range(sin_ra + 2, sin_ra, -1):
             achi_trial = _rating_to_achievement(i + 1, sin_ra_trial, inner_level)
             if achi_trial:
                 ans.append((achi_trial, sin_ra_trial))
