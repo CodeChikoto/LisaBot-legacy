@@ -386,7 +386,7 @@ async def _(bot: Bot, event: Event, state: T_State):
 @try_random_chart.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = random_chart(str(event.get_message()))
-    if text:
+    if img:
         try:
             await try_random_chart.send(Message([
                 {
@@ -409,7 +409,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 },
                 {
                     "type": "text",
-                    "data": {"text": text}
+                    "data": {"text": "好像被风控了捏"}
                 }]))
     else:
         await try_random_chart.send(Message([

@@ -192,15 +192,15 @@ def random_chart(user_in: str):
     keywords = keyword.replace("'", "\\'")
     conn = mai_dbpool.connection()
     cursor = conn.cursor()
-    cursor.execute(f"SELECT CI.Id,CD.Difficulty FROM ChartInfo CI JOIN ChartDifficulty CD ON CI.Id=CD.Id "
+    cursor.execute(f"SELECT CI.Id FROM ChartInfo CI JOIN ChartDifficulty CD ON CI.Id=CD.Id "
                    f"AND CI.Difficulty=CD.Difficulty WHERE CI.Charter LIKE '%{keywords}%' AND CD.Version='舞萌DX 2021'")
     res = cursor.fetchall()
     conn.close()
     if res:
-        id, difficulty = random.choice(res)
-        return select_chart(f"看谱 {difficulty}{id}")
+        [id] = random.choice(res)
+        return maimai_func.song_func.select_song_chart(f"id {id}")
     else:
-        return "", ""
+        return "有这位谱师嘛？", None
 
 
 # return: text, image (in BASE64 string)
