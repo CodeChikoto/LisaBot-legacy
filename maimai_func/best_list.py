@@ -45,15 +45,20 @@ class BestList:
     async def get_best_50(self) -> bool:
         def _fill_info(start: int, end: int, lock):
             nonlocal charts
-            index_to_str = {0: "Basic", 1: "Advanced", 2: "Expert", 3: "Master", 4: "Re:MASTER"}
             conn = mai_dbpool.connection()
             cursor = conn.cursor()
             for chart in charts[start:end]:
+                index_to_str = {0: "Basic", 1: "Advanced", 2: "Expert", 3: "Master", 4: "Re:MASTER"}
                 difficulty = index_to_str[chart["level_index"]]
                 title_rep = chart["title"].replace("'", "\\'")
-                cursor.execute(f"SELECT CD.Id,CD.InnerLevel,SI.ChinaVersion FROM ChartDifficulty CD JOIN SongInfo SI "
-                               f"ON CD.Id=SI.Id WHERE SI.Title='{title_rep}' AND SI.ChartType='{chart['type']}' "
-                               f"AND CD.Difficulty='{difficulty}' AND CD.Version='舞萌DX 2021'")
+                if "Link(CoF)" == title_rep:
+                    cursor.execute(
+                        f"SELECT CD.Id,CD.InnerLevel,SI.ChinaVersion FROM ChartDifficulty CD JOIN SongInfo SI "
+                        f"ON CD.Id=SI.Id WHERE SI.Id=383 AND CD.Difficulty='{difficulty}' AND CD.Version='舞萌DX 2021'")
+                else:
+                    cursor.execute(f"SELECT CD.Id,CD.InnerLevel,SI.ChinaVersion FROM ChartDifficulty CD JOIN SongInfo SI "
+                                   f"ON CD.Id=SI.Id WHERE SI.Title='{title_rep}' AND SI.ChartType='{chart['type']}' "
+                                   f"AND CD.Difficulty='{difficulty}' AND CD.Version='舞萌DX 2021'")
                 [id, inner_level, china_version] = cursor.fetchone()
                 chart["ds"] = float(inner_level)
                 chart["ra"], chart["rate"] = _cal_single_rating(chart["achievements"], inner_level)
@@ -501,6 +506,7 @@ async def analyze_rating(user_in: str, user_id: int):
         # 未到达 SSS+ 的推荐升1评级
         for chart in charts:
             if chart['achievements'] < 100.5:
+                i = 1
                 for i, aim_achi in enumerate(achie_ranks.values()):
                     if chart['achievements'] >= aim_achi:
                         break
