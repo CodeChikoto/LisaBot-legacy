@@ -51,7 +51,7 @@ remind_bot_muted = on_notice(rule=_bot_muted)
 async def _(bot: Bot, event: Event, state: T_State):
     rand = random.randint(1, 12)
     # hit
-    if 1 <= rand <= 3:
+    if 1 <= rand <= 4:
         await poke_back.finish(Message([
             {
                 "type": "image",
@@ -59,7 +59,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             }
         ]))
     # poke
-    elif 3 <= rand <= 6:
+    elif 5 <= rand <= 8:
         if event.__getattribute__('group_id') is None:
             event.__delattr__('group_id')
         await poke_back.finish(Message([
@@ -68,7 +68,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"qq": f"{event.sender_id}"}
             }
         ]))
-    elif 7 <= rand <= 8:
+    elif 9 <= rand <= 10:
         await poke_back.finish(Message([
             {
                 "type": "text",

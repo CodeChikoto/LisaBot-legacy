@@ -1,6 +1,8 @@
 import os
 from io import BytesIO
 from PIL import Image
+
+from models.quotation_models import Emoji
 from tools.image import image_to_base64
 from tools.shared_var import *
 import random
@@ -16,17 +18,11 @@ def mom():
 
 
 def random_emoji(type: str):
-    conn = quotation_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT Image FROM Emoji WHERE Type LIKE '{type}'")
-    res = cursor.fetchall()
-    [img] = random.choice(res)
+    emojis = Emoji.select(Emoji.image).where((Emoji.type_ ** type) & (Emoji.bot_name == "Lisa")).objects()
+    img = random.choice(emojis).image
     return str(image_to_base64(Image.open(BytesIO(img))), encoding="utf-8")
 
 
 def select_emoji(id: int):
-    conn = quotation_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT Image FROM Emoji WHERE Id={id}")
-    [img] = cursor.fetchone()
-    return str(image_to_base64(Image.open(BytesIO(img))), encoding="utf-8")
+    emojis = Emoji.get(Emoji.id == id)
+    return str(image_to_base64(Image.open(BytesIO(emojis.image))), encoding="utf-8")

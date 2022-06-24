@@ -1,4 +1,5 @@
 import random
+import time
 from _thread import start_new_thread
 from sched import scheduler
 import nonebot.matcher
@@ -9,14 +10,13 @@ from interact_func.select import *
 from tools.image import *
 from interact_func.emoji import *
 from pyrate_limiter import (BucketFullException, Duration, RequestRate, Limiter, MemoryListBucket)
+from models.player_models import *
 
 
 def _update_blacklist():
     global blacklist
-    conn = player_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT QQId FROM Blacklist")
-    blacklist = [int(ans[0]) for ans in cursor.fetchall()]
+    players = BlackList.select()
+    blacklist = [player.qq_id for player in players]
     blacklist_updater.enter(8640, 0, _update_blacklist, ())
 
 
@@ -186,17 +186,14 @@ async def _(bot: Bot, event: Event, state: T_State):
     regex = bot_nick_regex + f" (移除|移出|添加|增加|加入)黑名单 ([0-9]+)"
     _, op, aim_id = re.match(regex, str(event.get_message())).groups()
     aim_id = int(aim_id)
-    conn = player_dbpool.connection()
-    cursor = conn.cursor()
     if op in ["移除", "移出"]:
-        cursor.execute(f"DELETE FROM Blacklist WHERE QQId={aim_id}")
+        BlackList.insert(qq_id=aim_id).on_conflict_ignore()
         if aim_id in blacklist:
             blacklist.remove(aim_id)
     else:
-        cursor.execute(f"INSERT IGNORE Blacklist VALUES ({aim_id})")
+        BlackList.insert(qq_id=aim_id).on_conflict_ignore()
         if aim_id not in blacklist:
             blacklist.append(aim_id)
-    conn.commit()
     await manage_blacklist.finish(Message([
         {
             "type": "reply",

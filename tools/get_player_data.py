@@ -22,10 +22,3 @@ async def get_player_data(payload: dict, proj: str):
     except Exception:
         data = '发生了错误，找找机修看看吧'
     return data
-
-
-def get_all_request_versions() -> list:
-    ans = []
-    for ver_alias in version_alias.keys():
-        ans += version_alias[ver_alias][2]
-    return list(set(ans))

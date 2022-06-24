@@ -1,28 +1,29 @@
 import re
 import random
 from math import ceil
+from models.mai_models import *
 from tools.shared_var import *
 from tools.image import *
-from io import StringIO
 
 random.seed(2508)
 
 
-def _format_song_list(res: list, page: int) -> str:
-    if not res:
+def _format_song_list(songs, page: int) -> str:
+    if not songs:
         return "没有找到呢"
-    total_page = int(ceil(len(res) / 20))
+    total_page = int(ceil(len(songs) / 20))
     if page > total_page:
         return "你翻太多页啦"
-    res = res[(page - 1) * 20:min(page * 20, len(res))]
+    songs = songs[(page - 1) * 20:min(page * 20, len(songs))]
     msg = f"搜索结果第{page}/{total_page}页："
-    if len(res[0]) == 2:
-        for song in res:
-            msg += f"\n{song[0]}  {song[1]}"
-    else:
-        for song in res:
-            msg += f"\n{song[0]}  {difficulty_short[song[1]]}  {song[2]}"
-    return msg
+    try:
+        for song in songs:
+            msg += f"\n{song.id}  {difficulty_short[song.difficulty]}  {song.title}"
+    except AttributeError:
+        for song in songs:
+            msg += f"\n{song.id}  {song.title}"
+    finally:
+        return msg
 
 
 def search_by_inner_level(user_in: str):
@@ -32,26 +33,25 @@ def search_by_inner_level(user_in: str):
     if difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT SI.Id,CD.Difficulty,SI.Title FROM SongInfo SI JOIN ChartDifficulty CD "
-                   f"ON SI.Id=CD.Id WHERE CD.InnerLevel LIKE {inner_level} AND CD.Difficulty LIKE '{difficulty}' "
-                   f"AND CD.Version='舞萌DX 2021'")
-    res = cursor.fetchall()
-    conn.close()
-    return _format_song_list(res, page)
+    songs = SongInfo. \
+        select(SongInfo.id, ChartDifficulty.difficulty, SongInfo.title). \
+        join(ChartDifficulty, on=(SongInfo.id == ChartDifficulty.id)). \
+        where((ChartDifficulty.version == "舞萌DX2022") &
+              (ChartDifficulty.inner_level.like(inner_level)) &
+              (ChartDifficulty.difficulty ** difficulty)). \
+        objects()
+    return _format_song_list(songs, page)
 
 
 def search_by_artist(user_in: str):
     regex = "(曲师|艺术家|歌手)查歌 (.+)"
     _, keyword = re.match(regex, user_in).groups()
-    keyword = keyword.strip().replace("'", "\\'")
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE Artist LIKE '%{keyword}%'")
-    res = cursor.fetchall()
-    conn.close()
-    return _format_song_list(res, 1)
+    keyword = keyword.strip()
+    songs = SongInfo. \
+        select(SongInfo.id, SongInfo.title). \
+        where(SongInfo.artist.contains(keyword)). \
+        objects()
+    return _format_song_list(songs, 1)
 
 
 def search_by_level(user_in: str):
@@ -61,14 +61,14 @@ def search_by_level(user_in: str):
     if difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT SI.Id,CD.Difficulty,SI.Title FROM SongInfo SI JOIN ChartDifficulty CD "
-                   f"ON SI.Id=CD.Id WHERE CD.Level='{level}' AND CD.Difficulty LIKE '{difficulty}' "
-                   f"AND CD.Version='舞萌DX 2021'")
-    res = cursor.fetchall()
-    conn.close()
-    return _format_song_list(res, page)
+    songs = SongInfo. \
+        select(SongInfo.id, ChartDifficulty.difficulty, SongInfo.title). \
+        join(ChartDifficulty, on=(SongInfo.id == ChartDifficulty.id)). \
+        where((ChartDifficulty.version == "舞萌DX2022") &
+              (ChartDifficulty.level == level) &
+              (ChartDifficulty.difficulty ** difficulty)). \
+        objects()
+    return _format_song_list(songs, page)
 
 
 def search_by_name(user_in: str):
@@ -80,14 +80,14 @@ def search_by_name(user_in: str):
         _, keyword = re.match(regex, user_in).groups()
         page = 1
     page = 1 if not page else int(page)
-    keyword = keyword.strip().replace("'", "\\'")
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT DISTINCT Id,Title FROM SongInfo WHERE Title LIKE '%{keyword}%' "
-                   f"OR Id IN (SELECT Id FROM SongAlias WHERE Alias='{keyword}')")
-    res = cursor.fetchall()
-    conn.close()
-    return _format_song_list(res, page)
+    keyword = keyword.strip()
+    songs = SongInfo. \
+        select(SongInfo.id, SongInfo.title). \
+        left_outer_join(SongAlias, on=(SongInfo.id == SongAlias.id)). \
+        where(SongInfo.title.contains(keyword) | SongAlias.alias.contains(keyword)). \
+        distinct(). \
+        objects()
+    return _format_song_list(songs, page)
 
 
 def random_by_aug(user_in: str):
@@ -96,23 +96,29 @@ def random_by_aug(user_in: str):
     if difficulty and difficulty not in difficulty_alias:
         return "难度输入不对哦！"
     difficulty = difficulty_alias[difficulty] if difficulty else '%'
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
     if inner_level:
-        amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE InnerLevel LIKE {inner_level} "
-                                f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
+        charts = ChartDifficulty. \
+            select(ChartDifficulty.id). \
+            where((ChartDifficulty.inner_level.like(inner_level)) &
+                  (ChartDifficulty.difficulty ** difficulty) &
+                  (ChartDifficulty.version == '舞萌DX2022')). \
+            objects()
     elif level:
-        amount = cursor.execute(f"SELECT Id FROM ChartDifficulty WHERE Level='{level}' "
-                                f"AND Difficulty LIKE '{difficulty}' AND Version='舞萌DX 2021'")
+        charts = ChartDifficulty. \
+            select(ChartDifficulty.id). \
+            where((ChartDifficulty.level == level) &
+                  (ChartDifficulty.difficulty ** difficulty) &
+                  (ChartDifficulty.version == '舞萌DX2022')). \
+            objects()
     else:
-        amount = cursor.execute(f"SELECT Id FROM SongInfo")
-    if amount:
-        rand_int = random.randint(0, amount - 1)
-        [id] = cursor.fetchall()[rand_int]
-        conn.close()
-        return select_song_chart(f"id {id}")
+        charts = ChartDifficulty. \
+            select(ChartDifficulty.id.distinct()). \
+            where(ChartDifficulty.version == '舞萌DX2022'). \
+            objects()
+    if charts:
+        chart = random.choice(charts)
+        return select_song_charts(f"id {chart.id}")
     else:
-        conn.close()
         return "随机条件不对哦～", None
 
 
@@ -120,41 +126,33 @@ def search_by_notes_amount(user_in: str):
     regex = "^物量查歌 ([0-9]+)\s?([0-9]+)?"
     amount, page = re.match(regex, user_in).groups()
     page = 1 if not page else int(page)
-    amount = int(amount)
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT SI.Id,CI.Difficulty,SI.Title FROM SongInfo SI JOIN ChartInfo CI ON SI.Id=CI.Id "
-                   f"AND CI.Tap+CI.Hold+CI.Slide+CI.Touch+CI.Break={amount} AND CI.Touch IS NOT NULL "
-                   f"UNION SELECT SI.Id,CI.Difficulty,SI.Title FROM SongInfo SI JOIN ChartInfo CI "
-                   f"ON SI.Id=CI.Id AND CI.Tap+CI.Hold+CI.Slide+CI.Break={amount} AND CI.Touch IS NULL")
-    res = cursor.fetchall()
-    conn.close()
-    return _format_song_list(res, page)
+    songs = SongInfo. \
+        select(SongInfo.id, ChartInfo.difficulty, SongInfo.title). \
+        join(ChartInfo, on=(SongInfo.id == ChartInfo.id)). \
+        where((ChartInfo.touch.is_null()
+               & (ChartInfo.tap + ChartInfo.hold + ChartInfo.slide + ChartInfo.break_ == amount)) |
+              (~ChartInfo.touch.is_null() &
+               (ChartInfo.tap + ChartInfo.hold + ChartInfo.slide + ChartInfo.break_ + ChartInfo.touch == amount))). \
+        objects()
+    return _format_song_list(songs, page)
 
 
 def search_by_bpm(user_in: str):
     regex = "(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?"
     _, bpm, page = re.match(regex, user_in.upper()).groups()
     page = 1 if not page else int(page)
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT Id,Title FROM SongInfo WHERE BPM={bpm}")
-    res = cursor.fetchall()
-    conn.close()
-    return _format_song_list(res, page)
+    songs = SongInfo. \
+        select(SongInfo.id, SongInfo.title). \
+        where(SongInfo.bpm == bpm). \
+        objects()
+    return _format_song_list(songs, page)
 
 
-def select_song_chart(user_in: str):
+def select_song_charts(user_in: str):
     [id, version] = re.match("^id ([0-9]+)\s?(.+)?", user_in).groups()
-    id = int(id)
-    level_ver = "舞萌DX 2021" if not version else version.strip().replace("'", "\\'")
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    if cursor.execute(f"SELECT DISTINCT Version FROM ChartDifficulty WHERE Version='{level_ver}'") != 1:
-        return "输入的大版本好像不太明确？", ""
-    [level_ver] = cursor.fetchone()
-    exist = cursor.execute(f"SELECT Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion FROM SongInfo WHERE Id={id}")
-    if not exist:
+    version = "舞萌DX2022" if not version else version.strip()
+    song = SongInfo.get_or_none(SongInfo.id == id)
+    if not song:
         return "歌曲不存在哦！", ""
     base_img = Image.open("./material/song_chart_bg/idpic-bg-lisa.png")
     base_draw = ImageDraw.Draw(base_img)
@@ -165,115 +163,99 @@ def select_song_chart(user_in: str):
     medium24 = ImageFont.truetype("./material/typeface/SourceHanSans_17.ttf", 24, encoding="utf-8")
     medium26 = ImageFont.truetype("./material/typeface/SourceHanSans_17.ttf", 26, encoding="utf-8")
     heavy30 = ImageFont.truetype("./material/typeface/SourceHanSans_22.ttf", 30, encoding="utf-8")
-    cover_img = Image.open(BytesIO(fetch_song_cover(id))).resize((103, 103))
-    title, artist, bpm, chart_type, genre, version, china_version = cursor.fetchone()
+    cover_img = Image.open(BytesIO(song.cover)).resize((103, 103))
     chart_type_img = Image.open("./material/chart_type/UI_TST_Infoicon_DeluxeMode.png").resize((100, 32)) \
-        if chart_type == "DX" \
+        if song.chart_type == "DX" \
         else Image.open("./material/chart_type/UI_TST_Infoicon_StandardMode.png").resize((100, 32))
     base_img.paste(cover_img, (123, 89))
     base_img.paste(chart_type_img, (260, 170), mask=chart_type_img.split()[3])
     limit = lambda text: text if bold36.getsize(text)[0] <= 684 else limit(text[:-1])
-    title = limit(title)
+    title = limit(song.title)
     base_draw.text((264, 75), title, "#083060", font=bold36)
     limit = lambda text: text if medium24.getsize(text)[0] <= 700 else limit(text[:-1])
-    artist = limit(artist)
+    artist = limit(song.artist)
     base_draw.text((264, 125), artist, "#083060", font=medium24)
-    base_draw.text((370, 164), f"ID {id}          {genre}          BPM {bpm}", "#083060", font=medium26)
-    base_draw.text((864 - int(bold26.getsize(version)[0] / 2), 700), version, "#083060", font=bold26)
-    base_draw.text((864 - int(bold26.getsize(china_version)[0] / 2), 758), china_version, "#083060", font=bold26)
-    cursor.execute(f"SELECT Tap,Hold,Slide,Touch,Break,Charter FROM ChartInfo WHERE Id={id} "
-                   f"ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
-    chart_info_list = cursor.fetchall()
-    cursor.execute(f"SELECT Level,InnerLevel FROM ChartDifficulty WHERE Id={id} AND Version='{level_ver}' "
-                   f"ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
-    chart_difficulty_list = cursor.fetchall()
-    if not chart_difficulty_list:
-        chart_difficulty_list = ((), (), (), (), ())
-    base_draw.text((165 - int(bold18.getsize(level_ver)[0] / 2), 302), level_ver, "#083060", font=bold18)
-    for x, chart_info, chart_difficulty in zip(range(315, 916, 150), chart_info_list, chart_difficulty_list):
-        sum_notes = sum(chart_info[0:5] if chart_info[3] else chart_info[0:3] + chart_info[4:5])
-        if chart_difficulty:
-            base_draw.text((x - int(bold24.getsize(f"{chart_difficulty[0]} ({chart_difficulty[1]})")[0] / 2), 296),
-                           f"{chart_difficulty[0]} ({chart_difficulty[1]})", "white" if x != 915 else "#BD31E4",
-                           font=bold24)
+    base_draw.text((370, 164), f"ID {id}          {song.genre}          BPM {song.bpm}", "#083060", font=medium26)
+    base_draw.text((864 - int(bold26.getsize(song.version)[0] / 2), 700), song.version, "#083060", font=bold26)
+    base_draw.text((864 - int(bold26.getsize(song.china_version)[0] / 2), 758), song.china_version,
+                   "#083060", font=bold26)
+    charts = ChartInfo.select().where(ChartInfo.id == id). \
+        order_by(SQL("FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")).objects()
+    charts_difficulties = ChartDifficulty.select().\
+        where((ChartDifficulty.id == id) & (ChartDifficulty.version == version)). \
+        order_by(SQL("FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")).\
+        objects()
+    chart_difficulty_tuple = ((chart.level, chart.inner_level) for chart in charts_difficulties) \
+        if charts_difficulties else ((), (), (), (), ())
+    if charts_difficulties:
+        base_draw.text((165 - int(bold18.getsize(charts_difficulties[0].version)[0] / 2), 302),
+                       charts_difficulties[0].version, "#083060", font=bold18)
+    for x, chart, difficulty in zip(range(315, 916, 150), charts, chart_difficulty_tuple):
+        sum_notes = chart.tap + chart.hold + chart.slide + (chart.touch if chart.touch else 0) + chart.break_
+        if difficulty:
+            base_draw.text((x - int(bold24.getsize(f"{difficulty[0]} ({difficulty[1]})")[0] / 2), 296),
+                           f"{difficulty[0]} ({difficulty[1]})", "white" if x != 915 else "#BD31E4", font=bold24)
         base_draw.text((x - int(heavy30.getsize(f"{sum_notes}")[0] / 2), 339), f"{sum_notes}", "#083060", font=heavy30)
-        for i, y in enumerate((395, 444, 494, 544, 594)):
-            if chart_info[i]:
-                base_draw.text((x - int(medium26.getsize(f"{chart_info[i]}")[0] / 2), y), f"{chart_info[i]}", "#083060",
-                               font=medium26)
+        for i, y in zip((chart.tap, chart.hold, chart.slide, chart.touch, chart.break_), (395, 444, 494, 544, 594)):
+            if i is None:
+                continue
+            if chart:
+                base_draw.text((x - int(medium26.getsize(f"{i}")[0] / 2), y), f"{i}", "#083060", font=medium26)
     limit = lambda text: text if bold18.getsize(text)[0] <= 210 else limit(text[:-1])
-    for charter, y in zip((chart[5] for chart in chart_info_list[2:]), (697, 737, 777)):
+    for charter, y in zip((chart.charter for chart in charts[2:]), (697, 737, 777)):
         base_draw.text((255, y), f"{limit(charter)}", "#083060", font=bold18)
     return "", str(image_to_base64(base_img), encoding="utf-8")
 
 
 def select_song(user_in: str):
     [id, version] = re.match("^ma?i?song ([0-9]+)\s?(.+)?", user_in).groups()
-    version = "舞萌DX 2021" if not version else version
-    version = version.strip().replace("'", "\\'")
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT COUNT(DISTINCT Version) FROM ChartDifficulty WHERE Version='{version}'")
-    if cursor.fetchone()[0] != 1:
-        return "这是什么大版本呀？", ""
-    cursor.execute(f"SELECT Id,Title,Artist,BPM,ChartType,Genre,Version,ChinaVersion FROM SongInfo WHERE Id={id}")
-    res = cursor.fetchone()
-    if not res:
-        return "好像没有这首歌", ""
+    version = "舞萌DX2022" if not version else version.strip()
+    song = SongInfo.get_or_none(SongInfo.id == id)
+    if not song:
+        return "歌曲不存在哦！", ""
     text = f"""
-ID: {res[0]}
-标题：{res[1]}
-艺术家：{res[2]}
-BPM: {res[3]}
-谱面类型：{res[4]}
-分类：{res[5]}
-日服版本：{res[6]}
-国服版本：{res[7]}
-等级："""
-    img = Image.open(BytesIO(fetch_song_cover(id)))
-    cursor.execute(f"SELECT Level,InnerLevel,Version FROM ChartDifficulty WHERE Id={id} AND Version='{version}'"
-                   "ORDER BY FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")
-    res = cursor.fetchall()
-    level, inner_level = [data[0] for data in res], [str(data[1]) for data in res]
-    text += ",".join(level)
-    text += "\n定数：" + ",".join(inner_level)
-    conn.close()
+ID: {song.id}
+标题：{song.title}
+艺术家：{song.artist}
+BPM: {song.bpm}
+谱面类型：{song.chart_type}
+分类：{song.genre}
+日服版本：{song.version}
+国服版本：{song.china_version}"""
+    img = Image.open(BytesIO(song.cover))
+    charts_difficulties = ChartDifficulty.select(ChartDifficulty.level, ChartDifficulty.inner_level). \
+        where((ChartDifficulty.id == id) & (ChartDifficulty.version == version)). \
+        order_by(SQL("FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")). \
+        objects()
+    text += ("\n等级：" + ",".join([f"{chart.level}" for chart in charts_difficulties]))
+    text += ("\n定数：" + ",".join([f"{chart.inner_level}" for chart in charts_difficulties]))
     return text, str(image_to_base64(img), encoding="utf-8")
 
 
-def add_alias_handle(user_in: str):
+def add_alias(user_in: str):
     regex = "增加别名 ([0-9]+) (.+)"
     [id, alias] = re.match(regex, user_in).groups()
-    alias = alias.strip().replace("'", "\\'")
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    res = cursor.execute(f"INSERT IGNORE SongAlias (Id,Alias) SELECT {id},'{alias}' FROM DUAL "
-                         f"WHERE NOT EXISTS (SELECT Alias FROM SongAlias WHERE Alias LIKE '%{alias}%')")
-    conn.commit()
-    conn.close()
-    return "わかった！" if res else "别名已存在或 ID 不存在呢～"
+    alias = alias.strip()
+    try:
+        SongAlias.create(id=id, alias=alias).save()
+    except KeyError:
+        return "别名已存在或 ID 不存在呢～"
+    return "わかった！"
 
 
-def show_alias_handle(user_in: str):
+def find_alias(user_in: str):
     regex = "查看别名 ([0-9]+)"
     [id] = re.match(regex, user_in).groups()
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT Alias FROM SongAlias WHERE Id={id}")
-    res = cursor.fetchall()
-    if not res:
+    aliases = SongAlias.select().where(SongAlias.id == id).objects()
+    if not aliases:
         return "真的有这首歌么？"
     else:
-        return "该歌曲别名包括：" + "、".join([alias for [alias] in res])
+        return "该歌曲别名包括：" + "、".join([alias.alias for alias in aliases])
 
 
-def delete_alias_handle(user_in: str):
+def delete_alias(user_in: str):
     regex = "删除别名 ([0-9]+) (.+)"
     [id, alias] = re.match(regex, user_in).groups()
-    alias = alias.strip().replace("'", "\\'")
-    conn = mai_dbpool.connection()
-    cursor = conn.cursor()
-    res = cursor.execute(f"DELETE FROM SongAlias WHERE Id={id} AND Alias='{alias}'")
-    conn.commit()
-    conn.close()
-    return "オーケー" if res else "删除失败！"
+    alias = alias.strip()
+    SongAlias.delete().where((SongAlias.id == id) & (SongAlias.alias == alias))
+    return "オーケー"

@@ -1,6 +1,6 @@
 from maimai_func.song_func import *
 from maimai_func.chart_func import *
-from maimai_func.best_list import *
+from maimai_func.user_data_func import *
 from tools.image import *
 from nonebot import *
 from nonebot.adapters.cqhttp import *
@@ -17,40 +17,38 @@ inner_level_search = on_regex("^定数查歌 " + difficulty_regex + "?([0-9]{1,2
 level_search = on_regex("^等级查歌 " + difficulty_regex + "?([0-9]+\+?)\s?([0-9]+)?", priority=2, block=True)
 name_search = on_regex("^(search|查歌|搜索) (.+)$", priority=2, block=True)
 artist_search = on_regex("^(曲师|艺术家|歌手)查歌 (.+)", priority=2, block=True)
-view_song_chart = on_regex("^id ([0-9]+)\s?(.+)?", priority=2, block=True)
-view_song = on_regex("^ma?i?song ([0-9]+)\s?(.+)?", priority=2, block=True)
-view_chart = on_regex("^ma?i?chart " + difficulty_regex + "([0-9]+)\s?(.+)?", priority=2, block=True)
-view_chart_old = on_regex("^(看谱|查谱) " + difficulty_regex + "([0-9]+)\s?(.+)?", priority=2, block=True)
-mai_what = on_regex(r".*mai\s?什么", priority=2, block=True)
-which_is = on_regex("^(.+)是什么歌\s?([0-9]+)?$", priority=2, block=True)
-achie_range = on_regex(f"^达成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
-                       r"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
-                       r"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", priority=2, block=True)
-break_dist = on_regex(f"^绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
-                      f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
-                      f"([0-9]+),([0-9]+),([0-9]+),([0-9]+) ([0-9]+\.[0-9]+)", priority=2, block=True)
-random_song = on_regex("^随歌" + difficulty_regex + "\s?([0-9]{1,2}\.[0-9])?([0-9]+\+?)?", priority=2, block=True)
-try_random_chart = on_regex(r"^我要大战(.+)", priority=2, block=True)
-best_list_pic = on_regex("^(b|B)(4|5)0\s?(.+)?", priority=2, block=True)
-add_alias = on_regex("^增加别名 ([0-9]+) (.+)", priority=2, block=True)
-show_alias = on_regex("^查看别名 ([0-9]+)", priority=2, block=True)
-delete_alias = on_regex("^删除别名 ([0-9]+) (.+)", rule=_from_koto, priority=2, block=True)
-achie_list = on_regex("^(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
-level_process = on_regex("^进度 ([0-9]+\+?) " + achie_ranks_regex + "?\s?" + combo_ranks_regex + "?\s?"
-                         + sync_ranks_regex + "?\s?(.+)?", priority=2, block=True)
-plate_process = on_regex(f"^({'|'.join(version_alias.keys())})?({'|'.join(plate_require.keys())})进度\s?(.+)?"
-                         , priority=2)
-plate_list = on_regex("^牌子(条件|列表)\s?(.+)?", priority=2, block=True)
-view_name_plate = on_command("view_plates_list", aliases={"查看名牌板", "查看姓名框"}, priority=2, block=True)
-custom_name_plate = on_regex("^设置姓名框 ([0-9]+)", priority=2, block=True)
+song_charts_viewing = on_regex("^id ([0-9]+)\s?(.+)?", priority=2, block=True)
+song_viewing = on_regex("^ma?i?song ([0-9]+)\s?(.+)?", priority=2, block=True)
+chart_viewing = on_regex("^ma?i?chart " + difficulty_regex + "([0-9]+)\s?(.+)?", priority=2, block=True)
+another_song_random = on_regex(r".*mai\s?什么", priority=2, block=True)
+another_name_search = on_regex("^(.+)是什么歌\s?([0-9]+)?$", priority=2, block=True)
+achievements_range = on_regex(f"^达成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                              r"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                              r"([0-9]+),([0-9]+),([0-9]+),([0-9]+)", priority=2, block=True)
+break_dist_calculation = on_regex(f"^绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                                  f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) "
+                                  f"([0-9]+),([0-9]+),([0-9]+),([0-9]+) ([0-9]+\.[0-9]+)", priority=2, block=True)
+song_random = on_regex("^随歌" + difficulty_regex + "\s?([0-9]{1,2}\.[0-9])?([0-9]+\+?)?", priority=2, block=True)
+chart_random = on_regex(r"^我要大战(.+)", priority=2, block=True)
+best_list_query = on_regex("^(b|B)(4|5)0\s?(.+)?", priority=2, block=True)
+alias_addition = on_regex("^增加别名 ([0-9]+) (.+)", priority=2, block=True)
+alias_showing = on_regex("^查看别名 ([0-9]+)", priority=2, block=True)
+alias_deletion = on_regex("^删除别名 ([0-9]+) (.+)", rule=_from_koto, priority=2, block=True)
+level_list_showing = on_regex("^(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
+level_process_showing = on_regex("^进度 ([0-9]+\+?) " + achie_ranks_regex + "?\s?" + combo_ranks_regex + "?\s?"
+                                 + sync_ranks_regex + "?\s?(.+)?", priority=2, block=True)
+plate_process_showing = on_regex(f"^(.+)进度\s?(.+)?", priority=2, block=True)
+plate_requirements_showing = on_regex("^牌子(条件|列表)\s?(.+)?", priority=2, block=True)
+name_plates_viewing = on_command("name_plates_viewing", aliases={"查看名牌板", "查看姓名框"}, priority=2, block=True)
+name_plate_configuration = on_regex("^设置姓名框 ([0-9]+)", priority=2, block=True)
 notes_search = on_regex("^物量查歌 ([0-9]+)\s?([0-9]+)?", priority=2, block=True)
 bpm_search = on_regex("^(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?", priority=2, block=True)
-rating_analyzation = on_regex("^(底分|Ra|Rating)分析", priority=2, block=True)
-achi_line = on_regex("^(达成率|分数)线 " + difficulty_regex + "([0-9]+)\s?(0\+|100|101\-)?\s?(.+)?",
-                     priority=2, block=True)
-find_city_store = on_regex("^(查|寻)找机厅 (.+)", priority=2, block=True)
-view_store = on_regex("^(机厅|店铺)信息 (.+)-([0-9]+)", priority=2, block=True)
-rating_line = on_regex("^单曲(rating|ra) ([0-9]{1,2}\.[0-9])", priority=2, block=True)
+rating_analysis = on_regex("^(底分|Ra|Rating)分析", priority=2, block=True)
+achievements_line_calculation = on_regex("^(达成率|分数)线 " + difficulty_regex + "([0-9]+)\s?(0\+|100|101\-)?\s?(.+)?",
+                                         priority=2, block=True)
+stores_finding = on_regex("^(查|寻)找机厅 (.+)", priority=2, block=True)
+store_viewing = on_regex("^(机厅|店铺)信息 (.+)-([0-9]+)", priority=2, block=True)
+rating_line_showing = on_regex("^单曲(rating|ra) ([0-9]{1,2}\.[0-9])", priority=2, block=True)
 
 
 @inner_level_search.handle()
@@ -113,12 +111,12 @@ async def _(bot: Bot, event: Event, state: T_State):
     await artist_search.finish(final_msg)
 
 
-@view_song.handle()
+@song_viewing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = select_song(str(event.get_message()))
     try:
         if img:
-            await view_song_chart.send(Message([
+            await song_charts_viewing.send(Message([
                 {
                     "type": "reply",
                     "data": {"id": event.message_id}
@@ -133,7 +131,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 }
             ]))
     except CQHTTPAdapterException:
-        await view_song_chart.send(Message([
+        await song_charts_viewing.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -145,12 +143,12 @@ async def _(bot: Bot, event: Event, state: T_State):
         ]))
 
 
-@view_song_chart.handle()
+@song_charts_viewing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text, img = select_song_chart(str(event.get_message()))
+    text, img = select_song_charts(str(event.get_message()))
     try:
         if img:
-            await view_song_chart.send(Message([
+            await song_charts_viewing.send(Message([
                 {
                     "type": "reply",
                     "data": {"id": event.message_id}
@@ -161,7 +159,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 }
             ]))
         else:
-            await view_song_chart.send(Message([
+            await song_charts_viewing.send(Message([
                 {
                     "type": "reply",
                     "data": {"id": event.message_id}
@@ -171,7 +169,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                     "data": {"text": text}
                 }]))
     except CQHTTPAdapterException:
-        await view_song_chart.send(Message([
+        await song_charts_viewing.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -182,11 +180,11 @@ async def _(bot: Bot, event: Event, state: T_State):
             }]))
 
 
-@view_chart.handle()
+@chart_viewing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = select_chart(str(event.get_message()))
     try:
-        await view_chart.send(Message([
+        await chart_viewing.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -200,7 +198,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"text": text}
             }]))
     except CQHTTPAdapterException:
-        await view_chart.send(Message([
+        await chart_viewing.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -211,21 +209,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             }]))
 
 
-@view_chart_old.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    await view_chart.send(Message([
-        {
-            "type": "reply",
-            "data": {"id": event.message_id}
-        },
-        {
-            "type": "text",
-            "data": {"text": "歌曲信息和谱面信息已合并显示，直接使用 id *** 即可查看。"
-                             "如果需要文字版歌曲信息或谱面信息，请使用 msong *** 和 mchart ***～"}
-        }]))
-
-
-@mai_what.handle()
+@another_song_random.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = random_by_aug("随歌")
     if img:
@@ -252,10 +236,10 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": text}
             }])
-    await mai_what.send(final_msg)
+    await another_song_random.send(final_msg)
 
 
-@which_is.handle()
+@another_name_search.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text = search_by_name(str(event.get_message()))
     final_msg = Message([
@@ -267,12 +251,12 @@ async def _(bot: Bot, event: Event, state: T_State):
             "type": "text",
             "data": {"text": text}
         }])
-    await which_is.finish(final_msg)
+    await another_name_search.finish(final_msg)
 
 
-@achie_range.handle()
+@achievements_range.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text = cal_achie_range(str(event.get_message()))
+    text = cal_achievements_range(str(event.get_message()))
     final_msg = Message([
         {
             "type": "reply",
@@ -282,10 +266,10 @@ async def _(bot: Bot, event: Event, state: T_State):
             "type": "text",
             "data": {"text": text}
         }])
-    await achie_range.finish(final_msg)
+    await achievements_range.finish(final_msg)
 
 
-@break_dist.handle()
+@break_dist_calculation.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = cal_break_dist(str(event.get_message()))
     if img:
@@ -312,14 +296,14 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": text}
             }])
-    await break_dist.finish(final_msg)
+    await break_dist_calculation.finish(final_msg)
 
 
-@random_song.handle()
+@song_random.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = random_by_aug(str(event.get_message()))
     try:
-        await random_song.send(Message([
+        await song_random.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -333,7 +317,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"text": text}
             }]))
     except CQHTTPAdapterException:
-        await random_song.send(Message([
+        await song_random.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -344,9 +328,9 @@ async def _(bot: Bot, event: Event, state: T_State):
             }]))
 
 
-@best_list_pic.handle()
+@best_list_query.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    await best_list_pic.send(Message([
+    await best_list_query.send(Message([
         {
             "type": "reply",
             "data": {"id": event.message_id}
@@ -356,20 +340,9 @@ async def _(bot: Bot, event: Event, state: T_State):
             "data": {"text": "ちょっと待ってください〜（B50 时间较长哦）"}
         }
     ]))
-    img, error = await get_best_pic(str(event.get_message()), event.user_id)
+    img, text = get_best_list(str(event.get_message()), event.user_id)
     final_msg = None
-    if error:
-        final_msg = Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
-                "type": "text",
-                "data": {"text": error}
-            }
-        ])
-    elif img:
+    if img:
         final_msg = Message([
             {
                 "type": "reply",
@@ -378,17 +351,32 @@ async def _(bot: Bot, event: Event, state: T_State):
             {
                 "type": "image",
                 "data": {"file": f"base64://{img}"}
+            },
+            {
+                "type": "text",
+                "data": {"text": text}
             }
         ])
-    await best_list_pic.finish(final_msg)
+    elif text:
+        final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": text}
+            }
+        ])
+    await best_list_query.finish(final_msg)
 
 
-@try_random_chart.handle()
+@chart_random.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = random_chart(str(event.get_message()))
     if img:
         try:
-            await try_random_chart.send(Message([
+            await chart_random.send(Message([
                 {
                     "type": "reply",
                     "data": {"id": event.message_id}
@@ -402,7 +390,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                     "data": {"text": text}
                 }]))
         except CQHTTPAdapterException:
-            await try_random_chart.send(Message([
+            await chart_random.send(Message([
                 {
                     "type": "reply",
                     "data": {"id": event.message_id}
@@ -412,7 +400,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                     "data": {"text": "好像被风控了捏"}
                 }]))
     else:
-        await try_random_chart.send(Message([
+        await chart_random.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -423,10 +411,10 @@ async def _(bot: Bot, event: Event, state: T_State):
             }]))
 
 
-@add_alias.handle()
+@alias_addition.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text = add_alias_handle(str(event.get_message()))
-    await add_alias.finish(Message([
+    text = add_alias(str(event.get_message()))
+    await alias_addition.finish(Message([
         {
             "type": "reply",
             "data": {"id": event.message_id}
@@ -438,10 +426,10 @@ async def _(bot: Bot, event: Event, state: T_State):
     ]))
 
 
-@show_alias.handle()
+@alias_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text = show_alias_handle(str(event.get_message()))
-    await show_alias.finish(Message([
+    text = find_alias(str(event.get_message()))
+    await alias_showing.finish(Message([
         {
             "type": "reply",
             "data": {"id": event.message_id}
@@ -453,10 +441,10 @@ async def _(bot: Bot, event: Event, state: T_State):
     ]))
 
 
-@delete_alias.handle()
+@alias_deletion.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text = delete_alias_handle(str(event.get_message()))
-    await delete_alias.finish(Message([
+    text = delete_alias(str(event.get_message()))
+    await alias_deletion.finish(Message([
         {
             "type": "reply",
             "data": {"id": event.message_id}
@@ -468,9 +456,9 @@ async def _(bot: Bot, event: Event, state: T_State):
     ]))
 
 
-@achie_list.handle()
+@level_list_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text, img = await get_achie_list(str(event.get_message()), event.user_id)
+    text, img = await get_level_list(str(event.get_message()), event.user_id)
     if img:
         final_msg = Message([
             {
@@ -493,10 +481,10 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": text}
             }])
-    await achie_list.finish(final_msg)
+    await level_list_showing.finish(final_msg)
 
 
-@level_process.handle()
+@level_process_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     data = await get_level_process(str(event.get_message()), event.user_id)
     final_msg = Message([
@@ -509,26 +497,28 @@ async def _(bot: Bot, event: Event, state: T_State):
             "data": {"text": data}
         }
     ])
-    await level_process.finish(final_msg)
+    await level_process_showing.finish(final_msg)
 
 
-@plate_process.handle()
+@plate_process_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text = await get_plate_process(str(event.get_message()), event.user_id)
-    final_msg = Message([
-        {
-            "type": "reply",
-            "data": {"id": event.message_id}
-        },
-        {
-            "type": "text",
-            "data": {"text": text}
-        }
-    ])
-    await plate_process.finish(final_msg)
+    if text:
+        final_msg = Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": text}
+            }
+        ])
+        await plate_process_showing.send(final_msg)
+    await plate_process_showing.finish()
 
 
-@plate_list.handle()
+@plate_requirements_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = get_ver_plates(str(event.get_message()))
     if img:
@@ -553,12 +543,12 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"text": text}
             }
         ])
-    await plate_list.finish(final_msg)
+    await plate_requirements_showing.finish(final_msg)
 
 
-@view_name_plate.handle()
+@name_plates_viewing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    await view_name_plate.finish(Message([
+    await name_plates_viewing.finish(Message([
         {
             "type": "reply",
             "data": {"id": event.message_id}
@@ -571,7 +561,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         }]))
 
 
-@custom_name_plate.handle()
+@name_plate_configuration.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text = set_name_plate(str(event.get_message()), event.user_id)
     final_msg = Message([
@@ -584,7 +574,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             "data": {"text": text}
         }
     ])
-    await custom_name_plate.finish(final_msg)
+    await name_plate_configuration.finish(final_msg)
 
 
 @notes_search.handle()
@@ -617,11 +607,11 @@ async def _(bot: Bot, event: Event, state: T_State):
     await bpm_search.finish(final_msg)
 
 
-@rating_analyzation.handle()
+@rating_analysis.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     error, img = await analyze_rating(str(event.get_message()), event.user_id)
     if not error:
-        await rating_analyzation.send(Message([
+        await rating_analysis.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -632,7 +622,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             }
         ]))
     else:
-        await rating_analyzation.send(Message([
+        await rating_analysis.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -644,11 +634,11 @@ async def _(bot: Bot, event: Event, state: T_State):
         ]))
 
 
-@achi_line.handle()
+@achievements_line_calculation.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text, img = get_achi_line(str(event.get_message()))
+    text, img = get_achievements_line(str(event.get_message()))
     if text:
-        await achi_line.send(Message([
+        await achievements_line_calculation.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -659,7 +649,7 @@ async def _(bot: Bot, event: Event, state: T_State):
             }
         ]))
     else:
-        await achi_line.send(Message([
+        await achievements_line_calculation.send(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -671,11 +661,11 @@ async def _(bot: Bot, event: Event, state: T_State):
         ]))
 
 
-@find_city_store.handle()
+@stores_finding.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = find_store(str(event.get_message()))
     if not img:
-        await find_city_store.finish(Message([
+        await stores_finding.finish(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -685,7 +675,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"text": text}
             }]))
     else:
-        await find_city_store.finish(Message([
+        await stores_finding.finish(Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -701,10 +691,10 @@ async def _(bot: Bot, event: Event, state: T_State):
         ]))
 
 
-@view_store.handle()
+@store_viewing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text = select_store(str(event.get_message()))
-    await view_store.finish(Message([
+    await store_viewing.finish(Message([
         {
             "type": "reply",
             "data": {"id": event.message_id}
@@ -715,10 +705,10 @@ async def _(bot: Bot, event: Event, state: T_State):
         }]))
 
 
-@rating_line.handle()
+@rating_line_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     text = cal_single_rating_line(str(event.get_message()))
-    await rating_line.finish(Message([
+    await rating_line_showing.finish(Message([
         {
             "type": "reply",
             "data": {"id": event.message_id}
