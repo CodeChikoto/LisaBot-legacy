@@ -160,7 +160,7 @@ async def get_plate_process(user_in: str, user_id: int) -> Optional[str]:
         elif plate_require[plate] in sync_ranks.keys():
             for chart in charts[start:end]:
                 if (chart["id"] != 853 and ver == '舞') or (chart["id"] not in [70, 853] and chart["level_index"] != 4):
-                    if sync_ranks[sync_upper[chart["fs"]]] <= sync_ranks[plate_require[plate]]:
+                    if sync_ranks[combo_sync_upper[chart["fs"]]] <= sync_ranks[plate_require[plate]]:
                         finished_amount[chart["level_index"]] += 1
                     elif len(unfinished_charts) < 5:
                         unfinished_charts.append(chart)
@@ -240,18 +240,16 @@ def get_best_list(user_in: str, qq_id: int):
     _, mode, username = re.match("^(b|B)(4|5)0\s?(.+)?", user_in).groups()
     mode = "B40" if mode == "4" else "B50"
     best_list = Best40List(username, qq_id) if mode == "B40" else Best50List(username, qq_id)
-    """
     if best_list.get_from_home(mode):
         best_list.specific_frame(mode)
         text = None
     else:
-    """
-    if best_list.get_data_from_third():
-        text = "您正在使用第三方数据源"
-        best_list.translate_from_third()
-        best_list.specific_frame(mode)
-    else:
-        return None, "真的有这位玩家嘛？或者是没有绑定 QQ 号？"
+        if best_list.get_data_from_third():
+            text = "您正在使用第三方数据源"
+            best_list.translate_from_third()
+            best_list.specific_frame(mode)
+        else:
+            return None, "真的有这位玩家嘛？或者是没有绑定 QQ 号？"
 
     best_list.draw_pic()
     img = str(image_to_base64(best_list.get_pic()), encoding="utf-8")
@@ -364,8 +362,8 @@ class BestList:
     def get_from_home(self, mode: str) -> bool:
         request_data = {"username": self.username} if self.username else {'qq_id': self.qq_id}
         request_data['mode'] = mode
-        resp = requests.post("http://154.86.19.207:8000/player_query/best_records",
-                             proxies={'http': None, 'https': None}, data=json.dumps(request_data))
+        resp = requests.get("http://154.86.19.207:8000/player_query/best_records",
+                            proxies={'http': None, 'https': None}, data=json.dumps(request_data))
         if resp.status_code != 200:
             self.error = resp.text
             return False
@@ -553,9 +551,9 @@ class BestList:
                 plate_file_name = self.best_list_response['plate_id']
             # customized plate base
             elif self.qq_id:
-                plate_no = PlateSetting.get_or_none(PlateSetting.qq_id == self.qq_id).plate_no
-                if plate_no:
-                    plate_file_name = f"{plate_no:06d}"
+                user_plate = PlateSetting.get_or_none(PlateSetting.qq_id == self.qq_id)
+                if user_plate:
+                    plate_file_name = user_plate.plate_id
                 else:
                     plate_file_name = "000001"
             else:
@@ -607,8 +605,10 @@ class Best40List(BestList):
                                                self.best_list_response["rank_rating"]
 
     def get_from_home(self, mode: str):
-        super(Best40List, self).get_from_home(mode)
-        self.best_list_response["dx_rating"] = self.best_list_response["rating"]
+        if super(Best40List, self).get_from_home(mode):
+            self.best_list_response["dx_rating"] = self.best_list_response["rating"]
+            return True
+        return False
 
 
 class Best50List(BestList):
@@ -656,28 +656,37 @@ class Best50List(BestList):
                                                 self.best_list_response["records_new"])
         self.best_list_response["dx_rating"] = self.best_list_response["rating"]
 
+    def get_from_home(self, mode: str):
+        if super(Best50List, self).get_from_home(mode):
+            self.best_list_response["dx_rating"] = self.best_list_response["rating"]
+            return True
+        return False
+
 
 def set_name_plate(user_in: str, user_id: int) -> str:
     regex = "设置姓名框 ([0-9]+)"
     [plate_id] = re.match(regex, user_in).groups()
-    plate = PlateInfo.get_or_none(PlateInfo.plate_id == f'{plate_id:06d}')
+    plate_id = plate_id.rjust(6, '0')
+    plate = PlateInfo.select(PlateInfo.plate_name).where(PlateInfo.plate_id == plate_id).get()
     if user_id not in superuser and plate and plate.customizable and plate.enable:
-        player = PlayerBasicInfo. \
-            update({PlayerBasicInfo.plate_id: plate.plate_id}). \
-            where(PlayerBasicInfo.qq_id == user_id)
-        if not player.execute():
-            PlateSetting. \
-                insert(qq_id=user_id, plate_no=plate.plate_id). \
-                on_conflict(preserve=[PlateSetting.qq_id], update={PlateSetting.plate_no: plate.plate_id})
+        player = PlayerBasicInfo.get_or_none(PlayerBasicInfo.qq_id == user_id)
+        if not player:
+            user_plate = PlateSetting.get_or_create(qq_id=user_id)
+            user_plate.plate_id = plate_id
+            user_plate.save()
+        else:
+            player.plate_id = plate_id
+            player.save()
         return "できました！"
     elif user_id in superuser and plate:
-        player = PlayerBasicInfo. \
-            update({PlayerBasicInfo.plate_id: plate.plate_id}). \
-            where(PlayerBasicInfo.qq_id == user_id)
-        if not player.execute():
-            PlateSetting. \
-                insert(qq_id=user_id, plate_no=plate.plate_id). \
-                on_conflict(preserve=[PlateSetting.qq_id], update={PlateSetting.plate_no: plate.plate_id})
+        player = PlayerBasicInfo.get_or_none(PlayerBasicInfo.qq_id == user_id)
+        if not player:
+            user_plate = PlateSetting.get_or_create(qq_id=user_id)
+            user_plate.plate_id = plate_id
+            user_plate.save()
+        else:
+            player.plate_id = plate_id
+            player.save()
         return "できました！"
     else:
         return "好像没有这张姓名框？"

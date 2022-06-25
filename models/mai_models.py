@@ -101,6 +101,7 @@ class PlateInfo(MaiModel):
     requirement = TextField(column_name="Requirement")
     image = BlobField(column_name="Image")
     enable = BooleanField(column_name="Enable")
+    version_mask = BitField(column_name="VersionMask")
 
     class Meta:
         table_name = 'PlateInfo'

@@ -55,12 +55,13 @@ version_alias['舞'][2] = list(set(version_alias['舞'][2]))
 version_alias.update({
     '熊': [['maimaDX'], ['舞萌DX'], ['maimai でらっくす'], 1 << 13],
     '華': [['maimaDXPLUS'], ['舞萌DX'], ['maimai でらっくす'], 1 << 13],
-    '爽': [['Splash'], ['舞萌DX 2021'], ['maimai でらっくす Splash'], 1 << 14],
-    '煌': [['SplashPLUS'], ['舞萌DX 2022'], ['maimai でらっくす Splash PLUS'], 1 << 15]
+    '爽': [['Splash'], ['舞萌DX2021'], ['maimai でらっくす Splash'], 1 << 14],
+    '煌': [['SplashPLUS'], ['舞萌DX2021'], ['maimai でらっくす Splash PLUS'], 1 << 15]
 })
 all_versions = []
 for alias in version_alias.keys():
-    all_versions += version_alias[alias][2]
+    if version_alias[alias][2] not in all_versions:
+        all_versions += version_alias[alias][2]
 ver_num_dict = {
     "真": 6100,
     "超": 6104,
@@ -124,9 +125,9 @@ combo_upper = {"fc": "FC", "fcp": "FC+", "ap": "AP", "app": "AP+", "": ""}
 sync_ranks = {"FSD+": 0, "fsdp": 0, "FSD": 1, "fsd": 1, "FS+": 2, "fsp": 2, "FS": 3, "fs": 3, "": 4}
 sync_ranks_regex = f"({'|'.join(sync_ranks.keys())})"
 sync_ranks_regex = sync_ranks_regex.replace('+', '\+')
-sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
+combo_sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
 
-superuser = (993433577, 1826356872, 1873618331)
+superuser = (993433577, 1826356872, 1873618331, 583718334)
 
 mute_list = []
 cpu_thread_amount = multiprocessing.cpu_count()

@@ -5,8 +5,8 @@ env = Env()
 env.read_env()
 
 player_database = MySQLDatabase('Player', **{'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT', 'use_unicode': True,
-                                             'host': '127.0.0.1', 'port': 3306, 'user': 'anyone',
-                                             'password': 'UnpublicData'})
+                                             'host': '154.86.19.207', 'port': 3306, 'user': 'koto',
+                                             'password': 'ConnectionsFromKoto'})
 
 
 class PlayerModel(Model):
@@ -100,7 +100,7 @@ class UserBindWithQQIdRecord(PlayerModel):
 
 class PlateSetting(PlayerModel):
     qq_id = IntegerField(column_name="QQId", primary_key=True)
-    plate_no = IntegerField(column_name="PlateNo")
+    plate_id = CharField(column_name="PlateId")
 
     class Meta:
         table_name = "PlateSetting"
