@@ -60,8 +60,8 @@ version_alias.update({
 })
 all_versions = []
 for alias in version_alias.keys():
-    if version_alias[alias][2] not in all_versions:
-        all_versions += version_alias[alias][2]
+    all_versions += version_alias[alias][2]
+all_versions = list(set(all_versions))
 ver_num_dict = {
     "真": 6100,
     "超": 6104,
@@ -97,8 +97,9 @@ plate_ver_file = {
     '舞': 'mai',
     '熊': 'kuma-hana',
     '華': 'kuma-hana',
-    '爽': 'sawa',
-    '煌': 'kira'
+    '爽': '2021',
+    '煌': '2021',
+    '宙': 'uni'
 }
 plate_require = {
     "極": "FC",

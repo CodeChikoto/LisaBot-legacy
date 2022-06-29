@@ -5,8 +5,8 @@ env = Env()
 env.read_env()
 
 player_database = MySQLDatabase('Player', **{'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT', 'use_unicode': True,
-                                             'host': '154.86.19.207', 'port': 3306, 'user': 'koto',
-                                             'password': 'ConnectionsFromKoto'})
+                                             'host': '127.0.0.1', 'port': 3306, 'user': 'anyone',
+                                             'password': 'UnpublicData'})
 
 
 class PlayerModel(Model):
