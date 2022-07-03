@@ -64,7 +64,8 @@ async def get_level_list(user_in: str, user_id: int):
             select(ChartDifficulty.inner_level). \
             join(SongInfo, on=(ChartDifficulty.id == SongInfo.id)). \
             where((SongInfo.title == record["title"]) & (SongInfo.chart_type == record["type"]) &
-                  (ChartDifficulty.difficulty == difficulty_alias[difficulty.lower()])). \
+                  (ChartDifficulty.difficulty == difficulty_alias[difficulty.lower()]) &
+                  (ChartDifficulty.version == "舞萌DX2022")). \
             get()
         # XXX.XXXX FC+ DX Title
         msg += f"\n{record['achievements']:8.4f}  {combo_upper[record['fc']]:3}  {record['type']}  " \
@@ -360,16 +361,20 @@ class BestList:
         return False
 
     def get_from_home(self, mode: str) -> bool:
-        request_data = {"username": self.username} if self.username else {'qq_id': self.qq_id}
+        request_data = {"username": self.username, "qq_id": None} if self.username \
+            else {'qq_id': self.qq_id, "username": None}
         request_data['mode'] = mode
-        resp = requests.get("http://154.86.19.207:8000/player_query/best_records",
-                            proxies={'http': None, 'https': None}, data=json.dumps(request_data))
-        if resp.status_code != 200:
-            self.error = resp.text
+        try:
+            resp = requests.get("http://154.86.19.207:8000/player_query/best_records",
+                                proxies={'http': None, 'https': None}, data=json.dumps(request_data))
+            if resp.status_code != 200:
+                self.error = resp.text
+                return False
+            else:
+                self.best_list_response = resp.json()
+            return True
+        except ConnectionError:
             return False
-        else:
-            self.best_list_response = resp.json()
-        return True
 
     def specific_frame(self, mode):
         if self.best_list_response['dx_rating'] < 1000:

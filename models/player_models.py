@@ -1,12 +1,14 @@
 from peewee import *
 from environs import Env
+from playhouse.mysql_ext import MySQLConnectorDatabase
 
 env = Env()
 env.read_env()
 
-player_database = MySQLDatabase('Player', **{'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT', 'use_unicode': True,
-                                             'host': '127.0.0.1', 'port': 3306, 'user': 'anyone',
-                                             'password': 'UnpublicData'})
+player_database = MySQLConnectorDatabase('Player',
+                                         **{'charset': 'utf8', 'sql_mode': 'PIPES_AS_CONCAT', 'use_unicode': True,
+                                            'host': '127.0.0.1', 'port': 3306, 'user': 'anyone',
+                                            'password': 'UnpublicData'})
 
 
 class PlayerModel(Model):
