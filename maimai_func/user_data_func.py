@@ -793,7 +793,7 @@ async def analyze_rating(user_in: str, user_id: int):
                 ans.append(f"{difficulty_short[chart['level_index']]}{chart['ds']}  {chart['song_id']}  "
                            f"{chart['title']}  {aim_achi}%  "
                            f"Rating +{_cal_single_rating(aim_achi, chart['ds']) - chart['ra']}")
-        # 获取平均单曲 rating，计算对应定数达成率
+        # 获取最低单曲 rating，计算对应定数达成率
         level_achi_list = _rating_to_inner_level(charts[-1]['ra'])
         for achi, level in level_achi_list:
             # 固定达成率，提高定数
@@ -802,15 +802,17 @@ async def analyze_rating(user_in: str, user_id: int):
                     select(ChartDifficulty.inner_level, ChartDifficulty.difficulty, SongInfo.id, SongInfo.title). \
                     join(SongInfo, on=(ChartDifficulty.id == SongInfo.id)). \
                     where(ChartDifficulty.inner_level.between(level + 0.2, level + 0.4) &
-                          (ChartDifficulty.version == "舞萌DX2022") & (SongInfo.china_version != '舞萌DX2022'))
+                          (ChartDifficulty.version == "舞萌DX2022") & (SongInfo.china_version != '舞萌DX2022')).\
+                    objects()
             else:
                 recommend_charts = ChartDifficulty. \
                     select(ChartDifficulty.inner_level, ChartDifficulty.difficulty, SongInfo.id, SongInfo.title). \
                     join(SongInfo, on=(ChartDifficulty.id == SongInfo.id)). \
                     where(ChartDifficulty.inner_level.between(level + 0.2, level + 0.4) &
-                          (ChartDifficulty.version == "舞萌DX2022") & (SongInfo.china_version == '舞萌DX2022'))
-            ans += [f"{_get_difficulty_short(chart.difficulty)}{chart.inner_level}  {chart.songinfo.id}  " \
-                    f"{chart.songinfo.title}  {achi}%  " \
+                          (ChartDifficulty.version == "舞萌DX2022") & (SongInfo.china_version == '舞萌DX2022')).\
+                    objects()
+            ans += [f"{_get_difficulty_short(chart.difficulty)}{chart.inner_level}  {chart.id}  " \
+                    f"{chart.title}  {achi}%  " \
                     f"Rating +{_cal_single_rating(achi, chart.inner_level) - charts[-1]['ra']}"
                     for chart in recommend_charts if (chart.id, chart.difficulty) not in inlist_chart if achi >= 97]
             # 固定或降低定数，提高一档达成率
@@ -832,8 +834,8 @@ async def analyze_rating(user_in: str, user_id: int):
                         break
                 aim_achi = tuple(achie_ranks.values())[i - 1]
                 for chart in recommend_charts:
-                    if (chart.id, chart.difficulty) not in inlist_chart:
-                        ans += [f"{_get_difficulty_short(chart.difficulty)}{chart.inner_level}  {chart.id}  "
+                    if (chart.songinfo.id, chart.difficulty) not in inlist_chart:
+                        ans += [f"{_get_difficulty_short(chart.difficulty)}{chart.inner_level}  {chart.songinfo.id}  "
                                 f"{chart.songinfo.title}  {aim_achi}%  "
                                 f"Rating +{_cal_single_rating(aim_achi, chart.inner_level) - charts[-1]['ra']}"]
         return random.sample(ans, min(4, len(ans)))
