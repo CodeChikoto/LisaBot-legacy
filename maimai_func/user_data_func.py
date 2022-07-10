@@ -1,13 +1,8 @@
 import json
 import re
 import random
-import os
-from abc import abstractmethod
-from typing import Any
-
 import numpy as np
 import requests
-
 from models.mai_models import *
 from models.player_models import *
 from tools.get_player_data import *
@@ -23,6 +18,7 @@ title_font = ImageFont.truetype("./material/typeface/SourceHanSans_17.ttf", 20, 
 achi_font = ImageFont.truetype("./material/typeface/Dongqing.otf", 24, encoding="utf-8")
 level_font = ImageFont.truetype("./material/typeface/Dongqing.otf", 14, encoding="utf-8")
 sin_rating_font = ImageFont.truetype("./material/typeface/Dongqing.otf", 18, encoding="utf-8")
+token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo5OTM0MzM1NzcsInVzZXJfbmFtZSI6IlJJTmtvVE8iLCJleHAiOjE2ODg4OTE4ODEuMDcwOTIxLCJwZXJtaXNzaW9uIjoiYm90In0.tjjDFIdVYejgcTLsw8DEsPVozmwcPEP189xwXiH3jic"
 
 
 # return: text, image (in BASE64 string)
@@ -365,7 +361,7 @@ class BestList:
             else {'qq_id': self.qq_id, "username": None}
         request_data['mode'] = mode
         try:
-            resp = requests.get("http://154.86.19.207:8000/player_query/best_records",
+            resp = requests.get("http://154.86.19.207:8000/player_query/best_records", headers={"token": token},
                                 proxies={'http': None, 'https': None}, data=json.dumps(request_data))
             if resp.status_code != 200:
                 self.error = resp.text
@@ -542,9 +538,9 @@ class BestList:
                 limit = lambda text: text if name_font.getsize(text)[0] <= 271 else limit(text[:-1])
                 nickname = limit(nickname)
                 plate_draw.text((193, 61), nickname, "black", name_font)
-                if "qq" in self.payload:
+                if self.qq_id:
                     try:
-                        data = requests.get(f'http://q1.qlogo.cn/g?b=qq&nk={self.payload["qq"]}&s=640')
+                        data = requests.get(f'http://q1.qlogo.cn/g?b=qq&nk={self.qq_id}&s=640')
                         head_img = Image.open(BytesIO(data.content)).resize((143, 143))
                         head_img_mask = Image.open(f"./material/plates/UI_Icon_000001.png").resize((143, 143))
                         plate_img.paste(head_img, (12, 9), mask=head_img_mask)
@@ -611,7 +607,8 @@ class Best40List(BestList):
 
     def get_from_home(self, mode: str):
         if super(Best40List, self).get_from_home(mode):
-            self.best_list_response["dx_rating"] = self.best_list_response["rating"]
+            self.best_list_response["dx_rating"] = self.best_list_response["rating"] + \
+                                                   self.best_list_response["rank_rating"]
             return True
         return False
 

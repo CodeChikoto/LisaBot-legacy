@@ -181,7 +181,8 @@ def select_song_charts(user_in: str):
                    "#083060", font=bold26)
     charts = ChartInfo.select().where(ChartInfo.id == id). \
         order_by(SQL("FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")).objects()
-    charts_difficulties = ChartDifficulty.select().\
+    charts_difficulties = ChartDifficulty.\
+        select().\
         where((ChartDifficulty.id == id) & (ChartDifficulty.version == version)). \
         order_by(SQL("FIELD(Difficulty,'Basic','Advanced','Expert','Master','Re:MASTER')")).\
         objects()
