@@ -183,7 +183,7 @@ def random_chart(user_in: str):
         return "有这位谱师嘛？", None
 
 
-def get_achievements_line(user_in: str):
+async def get_achievements_line(user_in: str):
     regex = "(达成率|分数)线 " + difficulty_regex + "([0-9]+)\s?(0\+|100|101\-)?\s?(.+)?"
     _, difficulty, id, mode, version = re.match(regex, user_in.lower()).groups()
     version = "舞萌DX2022" if not version else version.strip()
@@ -293,7 +293,7 @@ def get_achievements_line(user_in: str):
 
 
 # return: text, image path
-def get_ver_plates(user_in: str):
+async def get_ver_plates(user_in: str):
     regex = "^牌子(条件|列表)\s?(.+)?"
     _, ver = re.match(regex, user_in).groups()
     if ver not in plate_ver_file.keys():

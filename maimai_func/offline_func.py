@@ -3,7 +3,7 @@ from tools.shared_var import *
 from tools.image import *
 
 
-def find_store(user_in: str):
+async def find_store(user_in: str):
     regex = "^(查|寻)?找机厅 (.+)"
     _, place = re.match(regex, user_in).groups()
     conn = mai_dbpool.connection()
@@ -18,7 +18,7 @@ def find_store(user_in: str):
                str(image_to_base64(text_to_image("\n".join(["  ".join(a) for a in ans]))), encoding="utf-8")
 
 
-def select_store(user_in: str):
+async def select_store(user_in: str):
     regex = "^(机厅|店铺)信息 (.+)-([0-9]+)"
     _, city, id = re.match(regex, user_in).groups()
     conn = mai_dbpool.connection()

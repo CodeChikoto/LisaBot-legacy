@@ -56,7 +56,7 @@ version_alias.update({
     '熊': [['maimaDX'], ['舞萌DX'], ['maimai でらっくす'], 1 << 13],
     '華': [['maimaDXPLUS'], ['舞萌DX'], ['maimai でらっくす'], 1 << 13],
     '爽': [['Splash'], ['舞萌DX2021'], ['maimai でらっくす Splash'], 1 << 14],
-    '煌': [['SplashPLUS'], ['舞萌DX2021'], ['maimai でらっくす Splash PLUS'], 1 << 15]
+    '煌': [['SplashPLUS'], ['舞萌DX2021'], ['maimai でらっくす Splash'], 1 << 14]
 })
 all_versions = []
 for alias in version_alias.keys():
@@ -115,18 +115,22 @@ plate_num_dict = {
     "舞舞": 3
 }
 
-achie_ranks = {'SSS+': 100.5, 'SSS': 100, 'SS+': 99.5, 'SS': 99, 'S+': 98, 'S': 97, 'AAA': 94,
-               'AA': 90, 'A': 80, 'BBB': 75, 'BB': 70, 'B': 60, 'C': 50, 'D': 0}
+achie_ranks = {'SSS+': 100.5, 'SSSp': 100.5, 'SSS': 100, 'SS+': 99.5, 'SSp': 99.5, 'SS': 99, 'S+': 98, 'Sp': 98,
+               'S': 97, 'AAA': 94, 'AA': 90, 'A': 80, 'BBB': 75, 'BB': 70, 'B': 60, 'C': 50, 'D': 0}
 achie_ranks_regex = f"({'|'.join(achie_ranks.keys())})"
 achie_ranks_regex = achie_ranks_regex.replace('+', '\+')
-combo_ranks = {"AP+": 0, "app": 0, "ap": 1, "AP": 1, "FC+": 2, "fcp": 2, "fc": 3, "FC": 3, "": 4}
+combo_ranks = {"AP+": 0, "APp": 0, "app": 0, "ap": 1, "AP": 1,
+               "FC+": 2, "FCp": 2, "fcp": 2, "fc": 3, "FC": 3,
+               "": 4}
 combo_ranks_regex = f"({'|'.join(combo_ranks.keys())})"
 combo_ranks_regex = combo_ranks_regex.replace('+', '\+')
 combo_upper = {"fc": "FC", "fcp": "FC+", "ap": "AP", "app": "AP+", "": ""}
-sync_ranks = {"FSD+": 0, "fsdp": 0, "FSD": 1, "fsd": 1, "FS+": 2, "fsp": 2, "FS": 3, "fs": 3, "": 4}
+sync_ranks = {"FSD+": 0, "fsdp": 0, "FSDp": 0, "FSD": 1, "fsd": 1,
+              "FS+": 2, "fsp": 2, "FSp": 2, "FS": 3, "fs": 3,
+              "": 4}
 sync_ranks_regex = f"({'|'.join(sync_ranks.keys())})"
 sync_ranks_regex = sync_ranks_regex.replace('+', '\+')
-combo_sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
+sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
 
 superuser = (993433577, 1826356872, 1873618331, 583718334)
 

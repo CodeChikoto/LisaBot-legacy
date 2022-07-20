@@ -157,7 +157,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         },
         {
             "type": "image",
-            "data": {"file": f"base64://{random_emoji('joyful')}"}
+            "data": {"file": f"base64://{await random_emoji('joyful')}"}
         }
     ]))
 

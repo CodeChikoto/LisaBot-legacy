@@ -26,9 +26,10 @@ def _format_song_list(songs, page: int) -> str:
         return msg
 
 
-def search_by_inner_level(user_in: str):
+async def search_by_inner_level(user_in: str):
     regex = "定数查歌 " + difficulty_regex + "?([0-9]{1,2}\.[0-9])\s?([0-9]+)?"
     difficulty, inner_level, page = re.match(regex, user_in.lower()).groups()
+    inner_level = float(inner_level)
     page = 1 if not page else int(page)
     if difficulty not in difficulty_alias:
         return "难度输入不对哦！"
@@ -43,7 +44,7 @@ def search_by_inner_level(user_in: str):
     return _format_song_list(songs, page)
 
 
-def search_by_artist(user_in: str):
+async def search_by_artist(user_in: str):
     regex = "(曲师|艺术家|歌手)查歌 (.+)"
     _, keyword = re.match(regex, user_in).groups()
     keyword = keyword.strip()
@@ -54,7 +55,7 @@ def search_by_artist(user_in: str):
     return _format_song_list(songs, 1)
 
 
-def search_by_level(user_in: str):
+async def search_by_level(user_in: str):
     regex = "等级查歌 " + difficulty_regex + "?([0-9]+\+?)\s?([0-9]+)?"
     difficulty, level, page = re.match(regex, user_in.lower()).groups()
     page = 1 if not page else int(page)
@@ -71,7 +72,7 @@ def search_by_level(user_in: str):
     return _format_song_list(songs, page)
 
 
-def search_by_name(user_in: str):
+async def search_by_name(user_in: str):
     if "是什么歌" in user_in:
         regex = "(.+)是什么歌\s?([0-9]+)?$"
         keyword, page = re.match(regex, user_in).groups()
@@ -90,7 +91,7 @@ def search_by_name(user_in: str):
     return _format_song_list(songs, page)
 
 
-def random_by_aug(user_in: str):
+async def random_by_aug(user_in: str):
     difficulty, inner_level, level = re.match("^随歌\s?" + difficulty_regex + "?([0-9]{1,2}\.[0-9])?([0-9]+\+?)?",
                                               user_in).groups()
     if difficulty and difficulty not in difficulty_alias:
@@ -122,7 +123,7 @@ def random_by_aug(user_in: str):
         return "随机条件不对哦～", None
 
 
-def search_by_notes_amount(user_in: str):
+async def search_by_notes_amount(user_in: str):
     regex = "^物量查歌 ([0-9]+)\s?([0-9]+)?"
     amount, page = re.match(regex, user_in).groups()
     page = 1 if not page else int(page)
@@ -137,7 +138,7 @@ def search_by_notes_amount(user_in: str):
     return _format_song_list(songs, page)
 
 
-def search_by_bpm(user_in: str):
+async def search_by_bpm(user_in: str):
     regex = "(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?"
     _, bpm, page = re.match(regex, user_in.upper()).groups()
     page = 1 if not page else int(page)
@@ -148,7 +149,7 @@ def search_by_bpm(user_in: str):
     return _format_song_list(songs, page)
 
 
-def select_song_charts(user_in: str):
+async def select_song_charts(user_in: str):
     [id, version] = re.match("^id ([0-9]+)\s?(.+)?", user_in).groups()
     version = "舞萌DX2022" if not version else version.strip()
     song = SongInfo.get_or_none(SongInfo.id == id)
@@ -208,7 +209,7 @@ def select_song_charts(user_in: str):
     return "", str(image_to_base64(base_img), encoding="utf-8")
 
 
-def select_song(user_in: str):
+async def select_song(user_in: str):
     [id, version] = re.match("^ma?i?song ([0-9]+)\s?(.+)?", user_in).groups()
     version = "舞萌DX2022" if not version else version.strip()
     song = SongInfo.get_or_none(SongInfo.id == id)
@@ -233,7 +234,7 @@ BPM: {song.bpm}
     return text, str(image_to_base64(img), encoding="utf-8")
 
 
-def add_alias(user_in: str):
+async def add_alias(user_in: str):
     regex = "增加别名 ([0-9]+) (.+)"
     [id, alias] = re.match(regex, user_in).groups()
     alias = alias.strip()
@@ -244,7 +245,7 @@ def add_alias(user_in: str):
     return "わかった！"
 
 
-def find_alias(user_in: str):
+async def find_alias(user_in: str):
     regex = "查看别名 ([0-9]+)"
     [id] = re.match(regex, user_in).groups()
     aliases = SongAlias.select().where(SongAlias.id == id).objects()
@@ -254,7 +255,7 @@ def find_alias(user_in: str):
         return "该歌曲别名包括：" + "、".join([alias.alias for alias in aliases])
 
 
-def delete_alias(user_in: str):
+async def delete_alias(user_in: str):
     regex = "删除别名 ([0-9]+) (.+)"
     [id, alias] = re.match(regex, user_in).groups()
     alias = alias.strip()

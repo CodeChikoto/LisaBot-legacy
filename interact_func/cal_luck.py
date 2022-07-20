@@ -14,7 +14,7 @@ sp_luckness_39 = "\n今日运气值：3939\n宜：带 fu 出勤\n宜：我草！
 sp_luckness_9 = "\n今日运气值：⑨\n宜：算术\n宜：ばか！\n宜：あたいってば最強ね！"
 
 
-def cal_luck(user_id: str, nickname: str):
+async def cal_luck(user_id: str, nickname: str):
     values = []
     date_time = datetime.datetime.now()
     random.seed(int(user_id) + int(date_time.strftime("%Y%m%d")))

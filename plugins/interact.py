@@ -55,7 +55,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         await poke_back.finish(Message([
             {
                 "type": "image",
-                "data": {"file": f"base64://{random_emoji('%')}"}
+                "data": {"file": f"base64://{await random_emoji('%')}"}
             }
         ]))
     # poke
@@ -154,7 +154,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         },
         {
             "type": "text",
-            "data": {"text": cal_luck(event.get_user_id(), dict(event.sender)["nickname"])}
+            "data": {"text": await cal_luck(event.get_user_id(), dict(event.sender)["nickname"])}
         }
     ])
     await today_luck.finish(msg)
