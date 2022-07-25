@@ -211,7 +211,7 @@ class LevelProcess(Thread):
 
     def find_finished(self):
         if self.achievements_rank:
-            aim_achievements = achie_ranks[self.achievements_rank]
+            aim_achievements = achievements_ranks[self.achievements_rank]
         if self.combo_rank:
             aim_combo = combo_ranks[self.combo_rank]
         if self.sync_rank:
@@ -254,7 +254,7 @@ class LevelProcess(Thread):
 
 async def get_level_process(user_in: str, user_id: int):
     regex = "^进度 ([0-9]+\+?) " + combo_ranks_regex + "?\s?" \
-            + sync_ranks_regex + "?\s?" + achie_ranks_regex + "?\s?(.+)?"
+            + sync_ranks_regex + "?\s?" + achievements_ranks_regex + "?\s?(.+)?"
     [level, combo, sync, achievements_rank, username] = re.match(regex, user_in.upper()).groups()
     if not achievements_rank and not combo and not sync:
         return "何が知りたい？"
@@ -297,8 +297,8 @@ class PlateProcess(Thread):
 
     def get_from_third(self) -> bool:
         def _finished(chart: dict):
-            if self.plate.requirement in achie_ranks.keys():
-                return chart["achievements"] >= achie_ranks[self.plate.requirement]
+            if self.plate.requirement in achievements_ranks.keys():
+                return chart["achievements"] >= achievements_ranks[self.plate.requirement]
             elif self.plate.requirement in combo_ranks.keys():
                 return combo_ranks[combo_upper[chart["fc"]]] <= combo_ranks[self.plate.requirement]
             elif self.plate.requirement in sync_ranks.keys():
@@ -938,22 +938,22 @@ class RatingAnalysis(Thread):
         inner_level_list = [1.0, 2.0, 3.0, 4.0, 5.0, 5.4, 5.6, 5.8]
         for achi_rank_trial in achi_rank_coef.keys():
             inner_level_trial = round(float(single_rating / achi_rank_coef[achi_rank_trial]
-                                            / achie_ranks[achi_rank_trial] * 100), 1)
+                                            / achievements_ranks[achi_rank_trial] * 100), 1)
             single_rating_trial = int(inner_level_trial * achi_rank_coef[achi_rank_trial]
-                                      * achie_ranks[achi_rank_trial] / 100)
+                                      * achievements_ranks[achi_rank_trial] / 100)
             if single_rating_trial == single_rating and \
                     (6.0 <= inner_level_trial <= 15.0 or inner_level_trial in inner_level_list):
-                ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial, 1)))
+                ans.append((achievements_ranks[achi_rank_trial], round(inner_level_trial, 1)))
             elif single_rating_trial > single_rating and \
                     (6.0 <= inner_level_trial - 0.1 <= 15.0 or inner_level_trial - 0.1 in inner_level_list) and \
                     int((inner_level_trial - 0.1) * achi_rank_coef[achi_rank_trial]
-                        * achie_ranks[achi_rank_trial] / 100) == single_rating:
-                ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial - 0.1)))
+                        * achievements_ranks[achi_rank_trial] / 100) == single_rating:
+                ans.append((achievements_ranks[achi_rank_trial], round(inner_level_trial - 0.1)))
             elif single_rating_trial < single_rating and \
                     (6.0 <= inner_level_trial + 0.1 <= 15.0 or inner_level_trial + 0.1 in inner_level_list) and \
                     int((inner_level_trial + 0.1) * achi_rank_coef[achi_rank_trial]
-                        * achie_ranks[achi_rank_trial] / 100) == single_rating:
-                ans.append((achie_ranks[achi_rank_trial], round(inner_level_trial + 0.1, 1)))
+                        * achievements_ranks[achi_rank_trial] / 100) == single_rating:
+                ans.append((achievements_ranks[achi_rank_trial], round(inner_level_trial + 0.1, 1)))
         return ans
 
     @staticmethod
@@ -1005,8 +1005,8 @@ class RatingAnalysis(Thread):
                               "AAA": 10.5, "AA": 9.5, "A": 8.5, "BBB": 7.5, "BB": 7.0, "B": 6.0,
                               "C": 5.0, "D": 0}
             achi_rank = None
-            for achi_rank_trial in achie_ranks.keys():
-                if achi >= achie_ranks[achi_rank_trial]:
+            for achi_rank_trial in achievements_ranks.keys():
+                if achi >= achievements_ranks[achi_rank_trial]:
                     achi_rank = achi_rank_trial
                     break
             achi = 100.5 if achi > 100.5 else achi
@@ -1019,10 +1019,10 @@ class RatingAnalysis(Thread):
         for chart in charts:
             if chart['achievements'] < 100.5:
                 i = 1
-                for i, aim_achi in enumerate(achie_ranks.values()):
+                for i, aim_achi in enumerate(achievements_ranks.values()):
                     if chart['achievements'] >= aim_achi:
                         break
-                aim_achi = tuple(achie_ranks.values())[i - 1]
+                aim_achi = tuple(achievements_ranks.values())[i - 1]
                 ans.append(f"{difficulty_short[chart['difficulty']]}{chart['inner_level']}  {chart['id']}  "
                            f"{chart['title']}  {aim_achi}%  "
                            f"Rating +{_cal_single_rating(aim_achi, chart['inner_level']) - chart['single_rating']}")
@@ -1062,10 +1062,10 @@ class RatingAnalysis(Thread):
                     where(ChartDifficulty.inner_level.between(level - 0.1, level + 0.1) &
                           (ChartDifficulty.version == "舞萌DX2022") & (SongInfo.china_version == '舞萌DX2022'))
             if achi < 100.5:
-                for i, aim_achi in enumerate(achie_ranks.values()):
+                for i, aim_achi in enumerate(achievements_ranks.values()):
                     if achi >= aim_achi:
                         break
-                aim_achi = tuple(achie_ranks.values())[i - 1]
+                aim_achi = tuple(achievements_ranks.values())[i - 1]
                 for chart in recommend_charts:
                     if (chart.songinfo.id, chart.difficulty) not in inlist_chart:
                         ans += [

@@ -318,9 +318,10 @@ def cal_single_rating_line(user_in: str) -> str:
         achi_rank_coef_dict = {"SSS+": 14.0, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5,
                                "AAA": 10.5, "AA": 9.5, "A": 8.5, "BBB": 7.5, "BB": 7.0, "B": 6.0, "C": 5.0}
         achi_rank_coef_list = tuple(achi_rank_coef_dict.keys())
-        achie_ranks_list = tuple(achie_ranks.keys())
+        achievements_levels = list(set(list(achievements_ranks.keys())))
+        achievements_levels.sort(reverse=True)
         achi_trial = round(single_rating / achi_rank_coef_dict[achi_rank_coef_list[i]] / inner_level * 100, 4)
-        if achie_ranks[achie_ranks_list[i - 1]] > achi_trial >= achie_ranks[achie_ranks_list[i]]:
+        if achievements_ranks[achievements_levels[i - 1]] > achi_trial >= achievements_ranks[achievements_levels[i]]:
             return achi_trial
         else:
             return None
@@ -331,7 +332,9 @@ def cal_single_rating_line(user_in: str) -> str:
     if not 1.0 <= inner_level <= 15.0:
         return "真的有这个定数嘛？"
     ans = [(100.5, _cal_single_rating(0, 100.5, inner_level))]
-    for i, achi in enumerate(tuple(achie_ranks.values())[1:6]):
+    achievements_nums = list(set(list(achievements_ranks.values())[2:9]))
+    achievements_nums.sort(reverse=True)
+    for i, achi in enumerate(achievements_nums):
         sin_ra = _cal_single_rating(i + 1, achi, inner_level)
         for sin_ra_trial in range(sin_ra + 2, sin_ra, -1):
             achi_trial = _rating_to_achievement(i + 1, sin_ra_trial, inner_level)

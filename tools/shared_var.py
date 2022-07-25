@@ -115,10 +115,10 @@ plate_num_dict = {
     "舞舞": 3
 }
 
-achie_ranks = {'SSS+': 100.5, 'SSSp': 100.5, 'SSS': 100, 'SS+': 99.5, 'SSp': 99.5, 'SS': 99, 'S+': 98, 'Sp': 98,
+achievements_ranks = {'SSS+': 100.5, 'SSSp': 100.5, 'SSS': 100, 'SS+': 99.5, 'SSp': 99.5, 'SS': 99, 'S+': 98, 'Sp': 98,
                'S': 97, 'AAA': 94, 'AA': 90, 'A': 80, 'BBB': 75, 'BB': 70, 'B': 60, 'C': 50, 'D': 0}
-achie_ranks_regex = f"({'|'.join(achie_ranks.keys())})"
-achie_ranks_regex = achie_ranks_regex.replace('+', '\+')
+achievements_ranks_regex = f"({'|'.join(achievements_ranks.keys())})"
+achievements_ranks_regex = achievements_ranks_regex.replace('+', '\+')
 combo_ranks = {"AP+": 0, "APp": 0, "app": 0, "ap": 1, "AP": 1,
                "FC+": 2, "FCp": 2, "fcp": 2, "fc": 3, "FC": 3,
                "": 4}

@@ -36,7 +36,7 @@ alias_showing = on_regex("^查看别名 ([0-9]+)", priority=2, block=True)
 alias_deletion = on_regex("^删除别名 ([0-9]+) (.+)", rule=_from_koto, priority=2, block=True)
 level_list_showing = on_regex("^(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?")
 level_process_showing = on_regex("^进度 ([0-9]+\+?) " + combo_ranks_regex + "?\s?" + sync_ranks_regex + "?\s?"
-                                 + achie_ranks_regex + "?\s?(.+)?", priority=2, block=True)
+                                 + achievements_ranks_regex + "?\s?(.+)?", priority=2, block=True)
 plate_process_showing = on_regex(f"^(.+)进度\s?(.+)?", priority=2, block=True)
 plate_requirements_showing = on_regex("^牌子(条件|列表)\s?(.+)?", priority=2, block=True)
 name_plates_viewing = on_command("name_plates_viewing", aliases={"查看名牌板", "查看姓名框"}, priority=2, block=True)

@@ -155,6 +155,8 @@ async def select_song_charts(user_in: str):
     song = SongInfo.get_or_none(SongInfo.id == id)
     if not song:
         return "歌曲不存在哦！", ""
+    if not song.china_version:
+        song.china_version = ""
     base_img = Image.open("./material/song_chart_bg/idpic-bg-lisa.png")
     base_draw = ImageDraw.Draw(base_img)
     bold18 = ImageFont.truetype("./material/typeface/SourceHanSans_37.ttf", 18, encoding="utf-8")
