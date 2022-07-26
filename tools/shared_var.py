@@ -132,7 +132,10 @@ sync_ranks_regex = f"({'|'.join(sync_ranks.keys())})"
 sync_ranks_regex = sync_ranks_regex.replace('+', '\+')
 sync_upper = {"fs": "FS", "fsp": "FS+", "fsd": "FSD", "fsdp": "FSD+", "fdx": "FSD", "fdxp": "FSD+", "": ""}
 
-superuser = (993433577, 1826356872, 1873618331, 583718334)
+superuser = {993433577, 1826356872, 1873618331, 583718334}
+allowed_users = {993433577, 2468519813, 1826356872, 1873618331, 583718334}
+bot_nick = {"lisa", "妈妈", "リサ", "贵贵", "有利息"}
+bot_nick_regex = f"({'|'.join(bot_nick)})"
 
 mute_list = []
 cpu_thread_amount = multiprocessing.cpu_count()

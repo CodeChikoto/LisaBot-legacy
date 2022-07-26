@@ -2,7 +2,6 @@ import json
 import re
 import random
 from threading import Thread
-
 import numpy as np
 import requests
 from models.player_models import *
@@ -915,6 +914,7 @@ class RatingAnalysis(Thread):
             return True
 
     def get_from_home(self) -> bool:
+        return False
         request_data = {"username": self.username, "qq_id": None} if self.username \
             else {'qq_id': self.qq_id, "username": None}
         request_data['mode'] = "B40"
@@ -1116,3 +1116,10 @@ async def get_rating_analysis(user_in: str, user_id: int):
     rating_analysis.start()
     rating_analysis.join()
     return rating_analysis.get_message()
+
+
+async def answer_analysis_request_from_others(items, request_user_id: int):
+    if request_user_id in allowed_users:
+        for item in items:
+            if item.type == "at":
+                return await get_rating_analysis("Ra分析", int(item.data["qq"]))

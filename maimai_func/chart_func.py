@@ -306,39 +306,38 @@ async def get_ver_plates(user_in: str):
 
 
 def cal_single_rating_line(user_in: str) -> str:
-    def _cal_single_rating(i: int, achi: float, inner_level: float) -> int:
-        achi_rank_coef_dict = {"SSS+": 14, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5,
-                               "AAA": 10.5, "AA": 9.5, "A": 8.5, "BBB": 7.5, "BB": 7.0, "B": 6.0,
-                               "C": 5.0, "D": 0}
-        achi_rank_coef_list = tuple(achi_rank_coef_dict.keys())
-        achi = 100.5 if achi > 100.5 else achi
-        return int(achi / 100 * achi_rank_coef_dict[achi_rank_coef_list[i]] * float(inner_level))
+    achi_rank_coef_dict = {"SSS+": 14, "SSSp": 14, "SSS": 13.5, "SS+": 13.2, "SSp": 13.2, "SS": 13.0,
+                           "S+": 12.7, "Sp": 12.7, "S": 12.5}
 
-    def _rating_to_achievement(i: int, single_rating: int, inner_level: float) -> Any:
-        achi_rank_coef_dict = {"SSS+": 14.0, "SSS": 13.5, "SS+": 13.2, "SS": 13.0, "S+": 12.7, "S": 12.5,
-                               "AAA": 10.5, "AA": 9.5, "A": 8.5, "BBB": 7.5, "BB": 7.0, "B": 6.0, "C": 5.0}
-        achi_rank_coef_list = tuple(achi_rank_coef_dict.keys())
-        achievements_levels = list(set(list(achievements_ranks.keys())))
-        achievements_levels.sort(reverse=True)
-        achi_trial = round(single_rating / achi_rank_coef_dict[achi_rank_coef_list[i]] / inner_level * 100, 4)
-        if achievements_ranks[achievements_levels[i - 1]] > achi_trial >= achievements_ranks[achievements_levels[i]]:
-            return achi_trial
-        else:
-            return None
+    def _cal_single_rating(achievements_level: str, inner_level: float, achievements: float) -> int:
+        achievements = 100.5 if achievements > 100.5 else achievements
+        return int(achievements / 100 * achi_rank_coef_dict[achievements_level] * float(inner_level))
 
+    def _rating_to_achievement(achievements_level: str, single_rating: int, inner_level: float) -> Any:
+        achi_rank_range_dict = {"SSS+": (101, 100.5), "SSSp": (100.4999, 100.0000), "SSS": (100.4999, 100.0000),
+                               "SS+": (99.9999, 99.5000), "SSp": (99.9999, 99.5000), "SS": (99.4999, 99.0000),
+                               "S+": (98.9999, 98.0000), "Sp": (98.9999, 98.0000), "S": (97.9999, 97.0000)}
+        trial_achievements = single_rating / inner_level / achi_rank_coef_dict[achievements_level] * 100
+        up, down = achi_rank_range_dict[achievements_level]
+        return trial_achievements if down <= trial_achievements <= up else None
+
+    ans = set()
     regex = "^单曲(rating|ra) ([0-9]{1,2}\.[0-9])"
     _, inner_level = re.match(regex, user_in.lower()).groups()
     inner_level = float(inner_level)
     if not 1.0 <= inner_level <= 15.0:
         return "真的有这个定数嘛？"
-    ans = [(100.5, _cal_single_rating(0, 100.5, inner_level))]
-    achievements_nums = list(set(list(achievements_ranks.values())[2:9]))
-    achievements_nums.sort(reverse=True)
-    for i, achi in enumerate(achievements_nums):
-        sin_ra = _cal_single_rating(i + 1, achi, inner_level)
-        for sin_ra_trial in range(sin_ra + 2, sin_ra, -1):
-            achi_trial = _rating_to_achievement(i + 1, sin_ra_trial, inner_level)
-            if achi_trial:
-                ans.append((achi_trial, sin_ra_trial))
-        ans.append((achi, sin_ra))
+    for achievements_level in achievements_ranks.keys():
+        if achievements_level == "AAA":
+            break
+        achievements = achievements_ranks[achievements_level]
+        single_rating = _cal_single_rating(achievements_level, inner_level, achievements)
+        for trial_single_rating in range(single_rating + 2, single_rating, -1):
+            if achievements == 100.5:
+                break
+            trial_achievements = _rating_to_achievement(achievements_level, trial_single_rating, inner_level)
+            if trial_achievements:
+                ans.add((trial_achievements, trial_single_rating))
+        ans.add((achievements, single_rating))
+    ans = sorted(tuple(ans), key=lambda x: x[0], reverse=True)
     return f"定数{inner_level}的单曲 rating\n" + "\n".join([f"{ra}: {achi:03.4f}%" for achi, ra in ans])

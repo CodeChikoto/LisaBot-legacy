@@ -20,8 +20,6 @@ def _update_blacklist():
     blacklist_updater.enter(8640, 0, _update_blacklist, ())
 
 
-bot_nick = ["lisa", "妈妈", "リサ"]
-bot_nick_regex = f"^({'|'.join(bot_nick)})"
 act = ["亲亲", "抱抱", "贴贴"]
 random.seed(time.time())
 blacklist = []

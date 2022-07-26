@@ -13,6 +13,10 @@ async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
     return True if event.user_id == 993433577 else False
 
 
+async def _from_allowed_users(bot: Bot, event: Event, state: dict):
+    return True if event.user_id in allowed_users else False
+
+
 inner_level_search = on_regex("^定数查歌 " + difficulty_regex + "?([0-9]{1,2}\.[0-9])\s?([0-9]+)?", priority=2, block=True)
 level_search = on_regex("^等级查歌 " + difficulty_regex + "?([0-9]+\+?)\s?([0-9]+)?", priority=2, block=True)
 name_search = on_regex("^(search|查歌|搜索) (.+)$", priority=2, block=True)
@@ -44,6 +48,7 @@ name_plate_configuration = on_regex("^设置姓名框 ([0-9]+)", priority=2, blo
 notes_search = on_regex("^物量查歌 ([0-9]+)\s?([0-9]+)?", priority=2, block=True)
 bpm_search = on_regex("^(bpm|BPM|速度)查歌 ([0-9]+)\s?([0-9]+)?", priority=2, block=True)
 rating_analysis = on_regex("^(底分|Ra|Rating|ra|rating)分析", priority=2, block=True)
+called_rating_analysis = on_regex(f"^{bot_nick_regex} 分析一下", rule=_from_allowed_users, priority=2, block=True)
 achievements_line_calculation = on_regex("^(达成率|分数)线 " + difficulty_regex + "([0-9]+)\s?(0\+|100|101\-)?\s?(.+)?",
                                          priority=2, block=True)
 stores_finding = on_regex("^(查|寻)找机厅 (.+)", priority=2, block=True)
@@ -607,6 +612,33 @@ async def _(bot: Bot, event: Event, state: T_State):
 @rating_analysis.handle()
 async def _(bot: Bot, event: Event, state: T_State):
     error, img = await get_rating_analysis(str(event.get_message()), event.user_id)
+    if not error:
+        await rating_analysis.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "image",
+                "data": {"file": f"base64://{img}"}
+            }
+        ]))
+    else:
+        await rating_analysis.send(Message([
+            {
+                "type": "reply",
+                "data": {"id": event.message_id}
+            },
+            {
+                "type": "text",
+                "data": {"text": error}
+            }
+        ]))
+
+
+@called_rating_analysis.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    error, img = await answer_analysis_request_from_others(event.get_message(), event.user_id)
     if not error:
         await rating_analysis.send(Message([
             {
