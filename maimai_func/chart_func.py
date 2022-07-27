@@ -123,7 +123,7 @@ def cal_break_dist(user_in: str):
     return _check_combo(user_chart), str(image_to_base64(text_to_image(msg)), encoding="utf-8")
 
 
-def select_chart(user_in: str):
+async def select_chart(user_in: str):
     global difficulty_alias, chart_regex
     regex = "ma?i?chart " + difficulty_regex + "([0-9]+)\s?(.+)?"
     difficulty, id, version = re.match(regex, user_in.lower()).groups()
@@ -167,7 +167,7 @@ Touch: {chart.touch}
     return msg, str(image_to_base64(img), encoding="utf-8")
 
 
-def random_chart(user_in: str):
+async def random_chart(user_in: str):
     regex = r"我要大战(.+)"
     [keyword] = re.match(regex, user_in).groups()
     charts = ChartInfo. \
@@ -178,7 +178,7 @@ def random_chart(user_in: str):
         objects()
     if charts:
         chart = random.choice(charts)
-        return maimai_func.song_func.select_song_charts(f"id {chart.id}")
+        return await maimai_func.song_func.select_song_charts(f"id {chart.id}")
     else:
         return "有这位谱师嘛？", None
 

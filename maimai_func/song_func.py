@@ -118,7 +118,7 @@ async def random_by_aug(user_in: str):
             objects()
     if charts:
         chart = random.choice(charts)
-        return select_song_charts(f"id {chart.id}")
+        return await select_song_charts(f"id {chart.id}")
     else:
         return "随机条件不对哦～", None
 
