@@ -2,6 +2,8 @@ import json
 import re
 import random
 from threading import Thread
+from typing import Optional
+
 import numpy as np
 import requests
 from models.player_models import *

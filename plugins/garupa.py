@@ -6,7 +6,6 @@ from nonebot import *
 from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 from tools.shared_var import *
-from maimai_func.offline_func import *
 
 
 garupa_level_search = on_regex("^等级查曲 ([0-9]{1,2})", priority=2, block=True)

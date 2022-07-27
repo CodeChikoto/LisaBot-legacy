@@ -1,12 +1,11 @@
-from typing import Dict, List, Optional
-from playhouse.mysql_ext import MySQLConnectorDatabase
 from peewee import *
 from environs import Env
+from models.models import ReconnectMySQLDatabase
 
 env = Env()
 env.read_env()
 
-mai_database = MySQLConnectorDatabase('maimai',
+mai_database = ReconnectMySQLDatabase('maimai',
                                       **{'charset': 'utf8mb4', 'sql_mode': 'PIPES_AS_CONCAT', 'use_unicode': True,
                                          'host': '127.0.0.1', 'port': 3306, 'user': 'anyone',
                                          'password': 'UnpublicData'})

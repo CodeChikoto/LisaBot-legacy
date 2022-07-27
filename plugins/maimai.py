@@ -6,7 +6,6 @@ from nonebot import *
 from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 from tools.shared_var import *
-from maimai_func.offline_func import *
 
 
 async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
@@ -51,8 +50,6 @@ rating_analysis = on_regex("^(底分|Ra|Rating|ra|rating)分析", priority=2, bl
 called_rating_analysis = on_regex(f"^{bot_nick_regex} 分析一下", rule=_from_allowed_users, priority=2, block=True)
 achievements_line_calculation = on_regex("^(达成率|分数)线 " + difficulty_regex + "([0-9]+)\s?(0\+|100|101\-)?\s?(.+)?",
                                          priority=2, block=True)
-stores_finding = on_regex("^(查|寻)找机厅 (.+)", priority=2, block=True)
-store_viewing = on_regex("^(机厅|店铺)信息 (.+)-([0-9]+)", priority=2, block=True)
 rating_line_showing = on_regex("^单曲(rating|ra|Ra|Rating) ([0-9]{1,2}\.[0-9])", priority=2, block=True)
 
 
@@ -688,50 +685,6 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"file": f"base64://{img}"}
             }
         ]))
-
-
-@stores_finding.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    text, img = await find_store(str(event.get_message()))
-    if not img:
-        await stores_finding.finish(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
-                "type": "text",
-                "data": {"text": text}
-            }]))
-    else:
-        await stores_finding.finish(Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
-                "type": "text",
-                "data": {"text": text}
-            },
-            {
-                "type": "image",
-                "data": {"file": f"base64://{img}"}
-            }
-        ]))
-
-
-@store_viewing.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    text = await select_store(str(event.get_message()))
-    await store_viewing.finish(Message([
-        {
-            "type": "reply",
-            "data": {"id": event.message_id}
-        },
-        {
-            "type": "text",
-            "data": {"text": text}
-        }]))
 
 
 @rating_line_showing.handle()
