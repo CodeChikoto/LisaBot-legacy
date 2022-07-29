@@ -87,26 +87,34 @@ plate_ver_file = {
     '檄': 'geki',
     '橙': 'daidai',
     '暁': 'akatsuki',
+    "晓": 'akatsuki',
     '桃': 'momo',
     '櫻': 'sakura',
+    "樱": 'sakura',
     '紫': 'murasaki',
     '菫': 'sumire',
+    "堇": 'sumire',
     '白': 'shira',
     '雪': 'yuki',
     '輝': 'akira',
+    "辉": "akira",
     '舞': 'mai',
     '熊': 'kuma-hana',
     '華': 'kuma-hana',
+    "华": "kuma-hana",
     '爽': '2021',
     '煌': '2021',
     '宙': 'uni'
 }
 plate_require = {
+    "极": "FC",
     "極": "FC",
     "将": "SSS",
+    "酱": "SSS",
     "神": "AP",
     "舞舞": "FSD",
-    "覇者": "A"
+    "覇者": "A",
+    "霸者": "A"
 }
 plate_num_dict = {
     "極": 0,

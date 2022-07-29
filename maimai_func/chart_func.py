@@ -33,7 +33,7 @@ def _check_combo(user_chart):
         return ""
 
 
-def cal_achievements_range(user_in: str):
+async def cal_achievements_range(user_in: str):
     regex = f"达成率范围 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) " \
             f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+),([0-9]+)"
     groups = re.match(regex, user_in).groups()
@@ -73,7 +73,7 @@ def cal_achievements_range(user_in: str):
            f"结果可能存在略微偏差\n" + _check_combo(user_chart)
 
 
-def cal_break_dist(user_in: str):
+async def cal_break_dist(user_in: str):
     regex = f"绝赞分布 {chart_regex} ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) " \
             f"([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+) ([0-9]+),([0-9]+),([0-9]+),([0-9]+) " \
             f"([0-9]+\.[0-9]+)"
@@ -293,7 +293,8 @@ async def get_achievements_line(user_in: str):
 
 
 # return: text, image path
-async def get_ver_plates(user_in: str):
+async def get_version_plates(user_in: str):
+
     regex = "^牌子(条件|列表)\s?(.+)?"
     _, ver = re.match(regex, user_in).groups()
     if ver not in plate_ver_file.keys():

@@ -518,7 +518,7 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @plate_requirements_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text, img = await get_ver_plates(str(event.get_message()))
+    text, img = await get_version_plates(str(event.get_message()))
     if img:
         final_msg = Message([
             {
