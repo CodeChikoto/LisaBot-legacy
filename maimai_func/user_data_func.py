@@ -10,7 +10,7 @@ from models.player_models import *
 from tools.image import *
 from tools.shared_var import *
 from math import ceil
-from multiprocessing import Process
+
 
 random.seed(2508)
 translate_dict = {'fs': 'FS', 'fsp': 'FSp', 'fc': 'FC', 'fcp': 'FCp',
@@ -136,7 +136,7 @@ class LevelList(Thread):
         return self.error, self.image
 
 
-async def get_level_achievements_list(user_in: str, user_id: int):
+def get_level_achievements_list(user_in: str, user_id: int):
     regex = "^(分数|达成率)列表 ([0-9]+\+?)\s?([0-9]+)?\s?(.+)?"
     _, level, page, username = re.match(regex, user_in).groups()
     page = 1 if not page else int(page)
@@ -253,7 +253,7 @@ class LevelProcess(Thread):
         return self.message if self.message else self.error
 
 
-async def get_level_process(user_in: str, user_id: int):
+def get_level_process(user_in: str, user_id: int):
     regex = "^进度 ([0-9]+\+?) " + combo_ranks_regex + "?\s?" \
             + sync_ranks_regex + "?\s?" + achievements_ranks_regex + "?\s?(.+)?"
     [level, combo, sync, achievements_rank, username] = re.match(regex, user_in.upper()).groups()
@@ -399,7 +399,7 @@ class PlateProcess(Thread):
         return self.message if self.message else self.error
 
 
-async def get_plate_process(user_in: str, qq_id: int) -> Optional[str]:
+def get_plate_process(user_in: str, qq_id: int) -> Optional[str]:
     regex = "^(.+)进度\s?(.+)?"
     plate_name, username = re.match(regex, user_in).groups()
     plate_process = PlateProcess(plate_name, username, qq_id)
@@ -737,7 +737,7 @@ class BestList(Thread):
             return None, self.error
 
 
-async def get_best_list(user_in: str, qq_id: int):
+def get_best_list(user_in: str, qq_id: int):
     _, mode, username = re.match("^(b|B)(4|5)0\s?(.+)?", user_in).groups()
     mode = "B40" if mode == "4" else "B50"
     best_list = Best40List(username, qq_id) if mode == "B40" else Best50List(username, qq_id)
@@ -1111,7 +1111,7 @@ class RatingAnalysis(Thread):
             return self.error, None
 
 
-async def get_rating_analysis(user_in: str, user_id: int):
+def get_rating_analysis(user_in: str, user_id: int):
     regex = "^(底分|Ra|Rating|ra|rating)分析\s?(.+)?"
     _, username = re.match(regex, user_in).groups()
     rating_analysis = RatingAnalysis(username, user_id)
@@ -1120,8 +1120,8 @@ async def get_rating_analysis(user_in: str, user_id: int):
     return rating_analysis.get_message()
 
 
-async def answer_analysis_request_from_others(items, request_user_id: int):
+def answer_analysis_request_from_others(items, request_user_id: int):
     if request_user_id in allowed_users:
         for item in items:
             if item.type == "at":
-                return await get_rating_analysis("Ra分析", int(item.data["qq"]))
+                return get_rating_analysis("Ra分析", int(item.data["qq"]))

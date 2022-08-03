@@ -191,7 +191,9 @@ async def get_achievements_line(user_in: str):
         return "难度输入不对哦！", None
     difficulty = difficulty_alias[difficulty]
     mode = "101-" if not mode else mode
-    chart = ChartInfo.get(ChartInfo.id == id, ChartInfo.difficulty == difficulty)
+    chart = ChartInfo.get_or_none(ChartInfo.id == id, ChartInfo.difficulty == difficulty)
+    if not chart:
+        return "谱面不存在哦～", None
     chart.touch = 0 if not chart.touch else chart.touch
     total_base = 1 * chart.tap + 2 * chart.hold + 3 * chart.slide + 5 * chart.break_ + 1 * chart.touch
     total_ex = chart.break_
@@ -231,16 +233,13 @@ async def get_achievements_line(user_in: str):
                     -2 / total_base * 100 + 0.4 / total_ex, -2.5 / total_base * 100 + 0.4 / total_ex,
                     -3 / total_base * 100 + 0.3 / total_ex, -5 / total_base * 100])
     chart_diff = ChartDifficulty. \
-        select(ChartDifficulty.inner_level, SongInfo.title). \
-        join(SongInfo, on=(ChartDifficulty.id == SongInfo.id)). \
+        select(ChartDifficulty.inner_level). \
         where(ChartDifficulty.id == id,
               ChartDifficulty.difficulty == difficulty,
               ChartDifficulty.version == version). \
-        get()
-    try:
-        title, inner_level = chart_diff.songinfo.title, chart_diff.inner_level
-    except TypeError:
-        return "谱面不存在哦～", None
+        get_or_none()
+    inner_level = chart_diff.inner_level if chart_diff else ""
+    title = SongInfo.select(SongInfo.title).where(SongInfo.id == id).get().title
     base_drawer = ImageDraw.Draw(base_pic)
     cover_frame = Image.open(f"./material/difficulty_frame/UI_UPE_MusicJacket_Base_"
                              f"{difficulty_file[difficulty]}.png").resize((146, 133))

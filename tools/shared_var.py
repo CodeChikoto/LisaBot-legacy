@@ -153,3 +153,16 @@ cpu_thread_amount = multiprocessing.cpu_count()
 def fetch_song_cover(id: int):
     song = SongInfo.get_or_none(SongInfo.id == id)
     return song.cover
+
+
+def global_var_init():
+    global global_var
+    global_var = dict()
+
+
+def get_global_var(key):
+    return global_var[key]
+
+
+def set_global_var(key, value):
+    global_var[key] = value

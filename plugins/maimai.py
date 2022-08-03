@@ -6,6 +6,7 @@ from nonebot import *
 from nonebot.adapters.cqhttp import *
 from nonebot.typing import *
 from tools.shared_var import *
+from tools.shared_var import get_global_var
 
 
 async def _from_koto(bot: Bot, event: Event, state: dict) -> bool:
@@ -275,7 +276,7 @@ async def _(bot: Bot, event: Event, state: T_State):
 async def _(bot: Bot, event: Event, state: T_State):
     text, img = await cal_break_dist(str(event.get_message()))
     if img:
-        final_msg = Message([
+        message = Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -289,7 +290,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "data": {"file": f"base64://{img}"}
             }])
     else:
-        final_msg = Message([
+        message = Message([
             {
                 "type": "reply",
                 "data": {"id": event.message_id}
@@ -298,7 +299,7 @@ async def _(bot: Bot, event: Event, state: T_State):
                 "type": "text",
                 "data": {"text": text}
             }])
-    await break_dist_calculation.finish(final_msg)
+    await break_dist_calculation.finish(message)
 
 
 @song_random.handle()
@@ -342,31 +343,24 @@ async def _(bot: Bot, event: Event, state: T_State):
             "data": {"text": "ちょっと待ってください〜"}
         }
     ]))
-    img, text = await get_best_list(str(event.get_message()), event.user_id)
-    final_msg = None
+    img, text = get_global_var("process_pool").apply_async(get_best_list,
+                                                           (str(event.get_message()), event.user_id)).get()
+    message = [{
+        "type": "reply",
+        "data": {"id": event.message_id}
+    }]
     if img:
-        final_msg = Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
-                "type": "image",
-                "data": {"file": f"base64://{img}"}
-            },
-        ])
-    elif text:
-        final_msg = Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
-                "type": "text",
-                "data": {"text": text}
-            }
-        ])
-    await best_list_query.finish(final_msg)
+        message.append({
+            "type": "image",
+            "data": {"file": f"base64://{img}"}
+        })
+    if text:
+        message.append({
+            "type": "text",
+            "data": {"text": text}
+        })
+    message = Message(message)
+    await best_list_query.finish(message)
 
 
 @chart_random.handle()
@@ -456,35 +450,31 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @level_list_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text, img = await get_level_achievements_list(str(event.get_message()), event.user_id)
+    text, img = get_global_var("process_pool"). \
+        apply_async(get_level_achievements_list, (str(event.get_message()), event.user_id)). \
+        get()
+    message = [{
+            "type": "reply",
+            "data": {"id": event.message_id}
+        }]
     if img:
-        final_msg = Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
+        message.append({
                 "type": "image",
-                "data": {
-                    "file": f"base64://{img}"
-                }
-            }])
-    elif text:
-        final_msg = Message([
-            {
-                "type": "reply",
-                "data": {"id": event.message_id}
-            },
-            {
+                "data": {"file": f"base64://{img}"}
+            })
+    if text:
+        message.append({
                 "type": "text",
                 "data": {"text": text}
-            }])
-    await level_list_showing.finish(final_msg)
+            })
+    await level_list_showing.finish(Message(message))
 
 
 @level_process_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    data = await get_level_process(str(event.get_message()), event.user_id)
+    data = get_global_var("process_pool").\
+        apply_async(get_level_process, (str(event.get_message()), event.user_id)).\
+        get()
     final_msg = Message([
         {
             "type": "reply",
@@ -500,7 +490,9 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @plate_process_showing.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    text = await get_plate_process(str(event.get_message()), event.user_id)
+    text = get_global_var("process_pool").\
+        apply_async(get_plate_process, (str(event.get_message()), event.user_id)).\
+        get()
     if text:
         final_msg = Message([
             {
@@ -608,7 +600,9 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @rating_analysis.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    error, img = await get_rating_analysis(str(event.get_message()), event.user_id)
+    error, img = get_global_var("process_pool").\
+        apply_async(get_rating_analysis, (str(event.get_message()), event.user_id)).\
+        get()
     if not error:
         await rating_analysis.send(Message([
             {
@@ -635,7 +629,9 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 @called_rating_analysis.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    error, img = await answer_analysis_request_from_others(event.get_message(), event.user_id)
+    error, img = get_global_var("process_pool").\
+        apply_async(answer_analysis_request_from_others, (event.get_message(), event.user_id)).\
+        get()
     if not error:
         await rating_analysis.send(Message([
             {
